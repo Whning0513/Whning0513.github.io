@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A note on configuring Codex CLI with CC Switch, RelayQuill, and mihomo, and reading timeout, 503, 403, and protocol errors.">
+  <meta name="theme-color" content="#f4f3ef">
+  <title>把中转站接通之后 | Whning</title>
+  <link rel="stylesheet" href="../css/home.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到正文</a>
+  <header class="site-header">
+    <a class="wordmark" href="../index.html" aria-label="Whning home">whning<span>.</span></a>
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="../index.html#about">About</a>
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#notes">Notes</a>
+      <a href="https://github.com/Whning0513" target="_blank" rel="noopener">GitHub <span aria-hidden="true">&#8599;</span></a>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <article class="article-page">
+      <p class="article-kicker">Field note / 2026-08-19</p>
+      <h1>把中转站接通之后：Request timeout、403 与协议错误</h1>
+      <p class="article-lede">Codex CLI 接入中转线路时，API 地址、请求链路和认证状态需要分别检查。</p>
+      <p class="article-byline">Codex CLI、CC Switch、RelayQuill 和 mihomo 的配置记录。</p>
+
+      <section>
+        <h2>请求链路</h2>
+        <p>请求链路通常为：Codex CLI → 本机的 <code>127.0.0.1:8317</code> → 中转服务 → 上游模型。mihomo 可能作为网络出口。检测到 <code>127.0.0.1:8317</code>，只能说明 Codex 已连接本地中转；是否使用代理，需要检查中转进程的网络配置。</p>
+        <p>CC Switch 用于切换 profile。RelayQuill 的 Base URL 应为 <code>/v1</code>，协议为 Responses，模型为 <code>gpt-5.6-luna</code>。模型字段只填写模型 ID，不能附加 <code>/responses</code>。</p>
+      </section>
+
+      <section>
+        <h2>错误处理</h2>
+        <ul>
+          <li><strong>Request timeout / Reconnecting</strong>：先看本地 8317 是否监听，再看中转到上游是否超时。</li>
+          <li><strong>401 invalid management key</strong>：管理 API 密钥不匹配。该密钥与 RelayQuill API Key 分开配置；如果服务端仍启用鉴权，管理密码留空会失败。</li>
+          <li><strong>503 auth_unavailable</strong>：本地中转收到了请求，但没有可用认证。检查 profile 的 API Key、Base URL 和协议。</li>
+          <li><strong>403 Country, region, or territory not supported</strong>：请求走了官方登录或 token 刷新，官方上游拒绝当前出口地区。</li>
+          <li><strong>403 This account only allows Codex official clients</strong>：上游账号只接受官方 Codex 客户端，拒绝 OpenAI-compatible 的 Responses 转发。需要允许 API/relay 的账号，或使用官方 profile。</li>
+          <li><strong>协议错误 / 404</strong>：核对 Base URL、Responses 协议和模型 ID。Base URL 不要包含完整请求路径。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>最短的现场检查</h2>
+        <pre><code>export PATH="$HOME/.local/bin:$PATH"
+ss -lntp | grep 8317
+curl -sS --max-time 15 -o /dev/null -w "local relay: HTTP %{http_code}\n" http://127.0.0.1:8317/v1/models
+curl -sS --max-time 15 -o /dev/null -w "upstream: HTTP %{http_code}\n" https://api.relayquill.com/v1/models</code></pre>
+        <p>8317 没有监听，先处理本地中转。若本地有响应、外部请求超时，再查 mihomo 的端口，以及中转进程是否继承了代理环境变量。</p>
+      </section>
+
+      <section>
+        <h2>切换 profile 后如何找回旧聊天</h2>
+        <p>切换 profile 只改变后续请求使用的供应商和认证配置。聊天记录在本地 Codex session 中。只要 <code>$CODEX_HOME</code> 没变（默认是 <code>~/.codex</code>），可以运行：</p>
+        <pre><code>codex resume --last</code></pre>
+        <p>直接运行 wrapper 通常会新开会话。切换后出现“原模型和当前模型不同”的提示是正常的。记录会保存模型或供应商信息，但这不等同于账号用户名。</p>
+      </section>
+
+      <section>
+        <h2>安全</h2>
+        <p>API Key 不要放进文章、<code>.bashrc</code> 或命令历史。曾经粘贴到聊天或日志里的 Key，应该撤销后重新创建。中转服务的 management key 和 API Key 分开管理；空密码只适合隔离的本机测试。</p>
+      </section>
+
+      <p><a class="inline-link" href="../index.html#notes">Back to notes <span aria-hidden="true">&#8592;</span></a></p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <span>&copy; 2026 Whning</span>
+    <a href="https://github.com/Whning0513" target="_blank" rel="noopener">github.com/Whning0513 <span aria-hidden="true">&#8599;</span></a>
+  </footer>
+</body>
+</html>

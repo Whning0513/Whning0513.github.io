@@ -1,0 +1,12 @@
+*
+!.gitignore
+!README.md
+!index.html
+!css/
+!css/home.css
+!.github/
+!.github/workflows/
+!.github/workflows/pages.yml
+!.nojekyll
+!notes/
+!notes/*.html

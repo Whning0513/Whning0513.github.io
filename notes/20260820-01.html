@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A field note on removing repeated Codex CLI trust prompts while keeping official and RelayQuill profiles switchable across Windows and Linux.">
+  <meta name="theme-color" content="#f4f3ef">
+  <title>让 Codex CLI 不再重复询问 | Whning</title>
+  <link rel="stylesheet" href="../css/home.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到正文</a>
+  <header class="site-header">
+    <a class="wordmark" href="../index.html" aria-label="Whning home">whning<span>.</span></a>
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="../index.html#about">About</a>
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#notes">Notes</a>
+      <a href="https://github.com/Whning0513" target="_blank" rel="noopener">GitHub <span aria-hidden="true">&#8599;</span></a>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <article class="article-page">
+      <p class="article-kicker">Field note / 2026-08-20</p>
+      <h1>让 Codex CLI 不再重复询问：双链路 YOLO 配置</h1>
+      <p class="article-lede">一次目录信任提示的排查，最后落到 provider 切换、全权限参数和跨 Windows/Linux wrapper。</p>
+      <p class="article-byline">Codex CLI、CC Switch、官方 profile 和 RelayQuill 的配置记录。</p>
+
+      <section>
+        <h2>先判断提示来自哪里</h2>
+        <p><code>Do you trust the contents of this directory?</code> 不是账号注册提示，也不是普通的沙箱审批。它对应 Codex 对当前 project 或 worktree 的信任记录。记录通常写在 <code>~/.codex/config.toml</code> 的 <code>projects.*.trust_level</code> 中。</p>
+        <p>问题出在本机的 wrapper 每次启动前都会切换 provider。切换脚本重新生成配置时，删掉了原来的 <code>[projects.*]</code> 表；本次启动确认 trusted 后，下一次切换又把它删掉，于是每次都像第一次打开。</p>
+        <pre><code>python "%~dp0cc-switch-codex" relayquill
+codex ...</code></pre>
+        <p>所以要修的不是“注册一次 Codex”，而是 provider 切换时的配置合并逻辑。</p>
+      </section>
+
+      <section>
+        <h2>把 YOLO、沙箱和目录信任分开</h2>
+        <p>当前 Codex CLI 没有名为 <code>--yolo</code> 的参数。这里把 YOLO 作为目标，把官方支持的强制开关作为实现：</p>
+        <pre><code>codex \
+  --dangerously-bypass-approvals-and-sandbox \
+  --dangerously-bypass-hook-trust \
+  --config sandbox_mode=danger-full-access \
+  --config approval_policy=never \
+  --config tui.resume_cwd=current \
+  "$@"</code></pre>
+        <ul>
+          <li><code>--dangerously-bypass-approvals-and-sandbox</code>：跳过命令审批并不使用沙箱。</li>
+          <li><code>--dangerously-bypass-hook-trust</code>：不再为 hook 的持久信任单独询问。</li>
+          <li><code>tui.resume_cwd=current</code>：resume 使用当前工作目录，避免在当前目录和会话保存目录之间再次选择。</li>
+          <li><code>projects.&lt;path&gt;.trust_level = "trusted"</code>：处理目录信任；它和沙箱审批不是同一个开关。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>切换 profile 时保留信任表</h2>
+        <p>切换脚本需要把新 provider 配置、官方 profile、旧的 live config 合并起来，再写回项目记录。关键部分可以写成：</p>
+        <pre><code>existing_config = read_text(CODEX)
+
+live = build_provider_config(provider_config)
+live = merge_trusted_projects(
+    live,
+    official_config,
+    provider_config,
+    existing_config,
+)</code></pre>
+        <p>合并函数不需要扫描整块磁盘。启动前登记当前目录和父目录即可：</p>
+        <pre><code>def local_trust_roots():
+    current = Path.cwd().resolve()
+    roots = []
+    while True:
+        roots.append(str(current))
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return roots</code></pre>
+        <p>父目录记录是为了覆盖 Codex 用 <code>.git</code> 解析出的 project root。它不是通配符；每次从新的目录启动 wrapper 时，脚本会为那棵路径重新登记 trusted。</p>
+      </section>
+
+      <section>
+        <h2>两条链路只差 provider</h2>
+        <p>Windows 的两个 wrapper 保持同一个权限参数，只在前一步切换不同 profile：</p>
+        <pre><code>@echo off
+setlocal
+python "%~dp0cc-switch-codex" codex-official
+if errorlevel 1 exit /b %ERRORLEVEL%
+codex --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust --config sandbox_mode=danger-full-access --config approval_policy=never --config tui.resume_cwd=current %*</code></pre>
+        <p>RelayQuill 版本只把 <code>codex-official</code> 换成 <code>relayquill</code>。Linux 版本使用同样的参数：</p>
+        <pre><code>#!/usr/bin/env bash
+set -e
+python3 "$HOME/.local/bin/cc-switch-codex" relayquill
+exec codex \
+  --dangerously-bypass-approvals-and-sandbox \
+  --dangerously-bypass-hook-trust \
+  --config sandbox_mode=danger-full-access \
+  --config approval_policy=never \
+  --config tui.resume_cwd=current \
+  "$@"</code></pre>
+        <p>官方 Linux wrapper 只需要把 provider 参数改为 <code>codex-official</code>。这样两个入口都可以使用 <code>resume</code>，并且不会因为切换链路而丢掉 trusted 记录。</p>
+      </section>
+
+      <section>
+        <h2>同步到另一台机器</h2>
+        <p>只同步脚本，不复制认证文件。远端使用自己的 provider 和 API Key：</p>
+        <pre><code>scp ~/.local/bin/cc-switch-codex A100_154:~/.local/bin/
+scp ~/.local/bin/codex-official A100_154:~/.local/bin/
+scp ~/.local/bin/codex-relay A100_154:~/.local/bin/
+ssh A100_154 'chmod 755 ~/.local/bin/cc-switch-codex ~/.local/bin/codex-official ~/.local/bin/codex-relay'</code></pre>
+        <p>如果远端是 Python 3.10，<code>tomllib</code> 可能不存在。配置校验可以优先尝试 <code>tomli</code>，没有解析库时不要让这一步阻断 provider 切换；最终配置仍由 Codex 解析。</p>
+      </section>
+
+      <section>
+        <h2>最短的验证</h2>
+        <pre><code>codex-official --help
+codex-relay --help
+cc-switch-codex current
+grep -E 'projects|trust_level' ~/.codex/config.toml</code></pre>
+        <p>先验证两个入口能启动，再分别切换一次 profile，确认 trusted 表没有消失。最后再运行 <code>codex-relay resume</code> 或 <code>codex-official resume</code>。</p>
+      </section>
+
+      <section>
+        <h2>安全</h2>
+        <p>这不是安全加固，而是把交互式安全边界改成了默认放行。全权限模式会允许模型读写工作目录、执行命令并加载 project-local config、hooks 和 rules。真正需要发布代码时，仍应单独检查 wrapper、项目目录和 API Key。</p>
+        <p>API Key 不要放进文章、脚本、<code>.bashrc</code> 或命令历史。曾经粘贴到聊天或日志里的 Key，应撤销后重新创建。</p>
+      </section>
+
+      <p><a class="inline-link" href="../index.html#notes">Back to notes <span aria-hidden="true">&#8592;</span></a></p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <span>&copy; 2026 Whning</span>
+    <a href="https://github.com/Whning0513" target="_blank" rel="noopener">github.com/Whning0513 <span aria-hidden="true">&#8599;</span></a>
+  </footer>
+</body>
+</html>
