@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A mathematical study note on GRPO, group-relative advantages, token-level clipping, and reference-policy regularization.">
+  <meta name="theme-color" content="#f4f3ef">
+  <title>GRPO: what changes when the critic disappears | Whning</title>
+  <link rel="stylesheet" href="../css/home.css">
+  <script>
+    window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header">
+    <a class="wordmark" href="../index.html" aria-label="Whning home">whning<span>.</span></a>
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="../index.html#about">About</a>
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#notes">Notes</a>
+      <a href="https://github.com/Whning0513" target="_blank" rel="noopener">GitHub <span aria-hidden="true">&#8599;</span></a>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <article class="article-page">
+      <p class="article-kicker">Study note / 2026-09-09</p>
+      <h1>GRPO: what changes when the critic disappears</h1>
+      <p class="article-lede">GRPO keeps PPO's clipped update, replaces the learned value baseline with comparisons inside a group, and moves the engineering bottleneck somewhere else.</p>
+      <p class="article-byline">The equations are short. Their edge cases are not.</p>
+
+      <section>
+        <h2>1. Replace a critic with a group</h2>
+        <p>For one prompt \(q\), sample \(G\) completions from the old policy:</p>
+        <div class="math-block">
+          \[o_1,\ldots,o_G\sim\pi_{\theta_{\mathrm{old}}}(\cdot\mid q).\]
+        </div>
+        <p>Give each completion a scalar outcome reward \(R_i\). GRPO standardizes rewards within that prompt:</p>
+        <div class="math-block">
+          \[\bar R=\frac{1}{G}\sum_{j=1}^{G}R_j,\qquad
+          s_R=\sqrt{\frac{1}{G}\sum_{j=1}^{G}(R_j-\bar R)^2},\qquad
+          \hat A_i=\frac{R_i-\bar R}{s_R}.\]
+        </div>
+        <p>The same \(\hat A_i\) is assigned to every token in completion \(i\) under outcome supervision. There is no learned state-value model. The baseline is the performance of sibling answers to the same question.</p>
+      </section>
+
+      <section>
+        <h2>2. The PPO machinery stays</h2>
+        <p>For token \(t\) in completion \(i\), define</p>
+        <div class="math-block">
+          \[\rho_{i,t}(\theta)=
+          \frac{\pi_\theta(o_{i,t}\mid q,o_{i,&lt;t})}
+          {\pi_{\theta_{\mathrm{old}}}(o_{i,t}\mid q,o_{i,&lt;t})}.\]
+        </div>
+        <p>The outcome-supervision objective in DeepSeekMath can be written as</p>
+        <div class="math-block">
+          \[\begin{aligned}
+          J_{\mathrm{GRPO}}(\theta)=\mathbb E\Bigg[\frac1G\sum_{i=1}^{G}\frac1{|o_i|}
+          \sum_{t=1}^{|o_i|}\Big(&\min(\rho_{i,t}\hat A_i,
+          \operatorname{clip}(\rho_{i,t},1-\epsilon,1+\epsilon)\hat A_i)\\
+          &-\beta D_{i,t}\Big)\Bigg].
+          \end{aligned}\]
+        </div>
+        <p>So GRPO is not “PPO without everything.” It retains an old policy, importance ratios, clipping, multiple update epochs, and reference-policy regularization. What disappears is the separately trained critic.</p>
+      </section>
+
+      <section>
+        <h2>3. The KL term is explicit</h2>
+        <p>DeepSeekMath uses the following nonnegative sample estimator for \(D_{\mathrm{KL}}(\pi_\theta\Vert\pi_{\mathrm{ref}})\):</p>
+        <div class="math-block">
+          \[D_{i,t}=x_{i,t}-\log x_{i,t}-1,\qquad
+          x_{i,t}=\frac{\pi_{\mathrm{ref}}(o_{i,t}\mid q,o_{i,&lt;t})}
+          {\pi_\theta(o_{i,t}\mid q,o_{i,&lt;t})}.\]
+        </div>
+        <p>Its nonnegativity follows from \(x-1\geq\log x\) for \(x&gt;0\). The reference model asks the policy not to move too far from its starting behavior, while clipping controls movement relative to the policy that generated the current batch. Those are different comparisons.</p>
+      </section>
+
+      <section>
+        <h2>4. Group normalization has useful invariances</h2>
+        <p>By construction, the normalized advantages sum to zero:</p>
+        <div class="math-block">\[\sum_{i=1}^{G}\hat A_i=0.\]</div>
+        <p>If rewards undergo a positive affine transformation \(R_i'=aR_i+b\) with \(a&gt;0\), the normalized advantages stay the same, apart from a numerical stabilizer. GRPO therefore cares about relative performance inside the group, not the absolute reward scale.</p>
+        <p>The baseline is not independent of its own sample. A useful identity is</p>
+        <div class="math-block">
+          \[R_i-\bar R=\frac{G-1}{G}(R_i-\bar R_{-i}),\]
+        </div>
+        <p>where \(\bar R_{-i}\) is the mean of the other \(G-1\) rewards. Using the full group mean mostly changes the scale compared with a leave-one-out baseline, and the standard deviation absorbs much of that scale.</p>
+      </section>
+
+      <section>
+        <h2>5. The awkward cases matter</h2>
+        <ul>
+          <li><strong>All rewards tie.</strong> Then \(s_R=0\). An implementation needs an epsilon, a skip rule, or both. A tiny denominator can amplify noise.</li>
+          <li><strong>Binary rewards are sparse.</strong> A group of all failures gives no relative learning signal, even if every completion is bad in a different way.</li>
+          <li><strong>One reward labels every token.</strong> Outcome supervision cannot say which reasoning step caused success or failure. Process supervision can assign step rewards, but it needs a trustworthy process signal.</li>
+          <li><strong>Prompt difficulty changes the signal.</strong> Group normalization compares answers to the same prompt, which is useful, but very easy and very hard prompts often produce ties.</li>
+          <li><strong>Long answers get averaged over tokens.</strong> The \(1/|o_i|\) factor changes how completion length affects the update. Length and reward should be inspected together.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>6. Less critic memory does not mean cheap RL</h2>
+        <p>Removing a value model saves parameters, optimizer state, activations, and critic training work. It also requires multiple completions per prompt. For autoregressive models, generation is often the expensive part.</p>
+        <p>This matches a broader pattern in my experiment logs across three machines: raw task or environment throughput is a poor substitute for end-to-end learner throughput. In GRPO I would report generation tokens per second, training tokens per second, group reward standard deviation, zero-variance group rate, KL, clip fraction, completion length, and reward by prompt category.</p>
+      </section>
+
+      <section>
+        <h2>PPO and GRPO side by side</h2>
+        <div class="article-table-wrap">
+          <table>
+            <thead><tr><th>Question</th><th>PPO</th><th>GRPO</th></tr></thead>
+            <tbody>
+              <tr><td>Baseline</td><td>Learned value function</td><td>Mean reward of same-prompt samples</td></tr>
+              <tr><td>Advantage</td><td>Often GAE per time step</td><td>Standardized group reward, or process-reward return</td></tr>
+              <tr><td>Extra model</td><td>Critic</td><td>No critic, but a reference model may still be present</td></tr>
+              <tr><td>Main weak spot</td><td>Critic error and bootstrapping</td><td>Reward ties and weak within-group variation</td></tr>
+              <tr><td>Shared machinery</td><td colspan="2">Old-policy sampling, probability ratios, clipping, repeated updates, KL monitoring</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>中文小结</h2>
+        <div class="zh-summary">
+          <p>GRPO 没有把 PPO 全推翻。它主要是不用 critic，改为同一道题多次采样，再用组内相对奖励当 advantage。省下的是 value model，新增的压力是多次生成。最需要盯的不是一个总 reward，而是组内方差、全员同分比例、KL、clip fraction 和长度分布。</p>
+        </div>
+      </section>
+
+      <section class="references">
+        <h2>References</h2>
+        <ul>
+          <li>Shao et al., <a href="https://arxiv.org/abs/2402.03300">DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models</a>, 2024.</li>
+          <li>Schulman et al., <a href="https://arxiv.org/abs/1707.06347">Proximal Policy Optimization Algorithms</a>, 2017.</li>
+        </ul>
+      </section>
+
+      <p><a class="inline-link" href="../index.html#notes">Back to notes <span aria-hidden="true">&#8592;</span></a></p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <span>&copy; 2026 Whning</span>
+    <a href="https://github.com/Whning0513" target="_blank" rel="noopener">github.com/Whning0513 <span aria-hidden="true">&#8599;</span></a>
+  </footer>
+</body>
+</html>

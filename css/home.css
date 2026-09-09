@@ -186,6 +186,7 @@ h2 { max-width: 560px; margin-bottom: 0; font-size: var(--heading-size); font-we
 }
 .article-page p, .article-page li { max-width: 680px; }
 .article-page ul { padding-left: 1.25rem; }
+.article-page ol { padding-left: 1.35rem; }
 .article-page li { margin-bottom: .85rem; }
 .article-page li:last-child { margin-bottom: 0; }
 .article-page code {
@@ -211,6 +212,31 @@ h2 { max-width: 560px; margin-bottom: 0; font-size: var(--heading-size); font-we
   padding: 1.25rem 0;
   color: var(--muted);
 }
+.math-block {
+  max-width: 680px;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  border-left: 2px solid var(--accent);
+  padding: .9rem 1rem;
+  background: rgba(255, 255, 255, .28);
+}
+.math-block p:last-child { margin-bottom: 0; }
+.article-table-wrap { max-width: 680px; overflow-x: auto; }
+.article-page table { width: 100%; border-collapse: collapse; }
+.article-page th, .article-page td {
+  border-top: 1px solid var(--line);
+  padding: .75rem .8rem .75rem 0;
+  text-align: left;
+  vertical-align: top;
+}
+.article-page th { font-weight: 700; }
+.zh-summary {
+  max-width: 680px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 1.25rem 0;
+}
+.references a { overflow-wrap: anywhere; }
 .site-footer {
   display: flex;
   justify-content: space-between;
