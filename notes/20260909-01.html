@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A mathematical study note on policy gradients, importance ratios, GAE, and PPO's clipped objective.">
+  <meta name="theme-color" content="#f4f3ef">
+  <title>PPO: from policy gradients to clipping | Whning</title>
+  <link rel="stylesheet" href="../css/home.css">
+  <script>
+    window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header">
+    <a class="wordmark" href="../index.html" aria-label="Whning home">whning<span>.</span></a>
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="../index.html#about">About</a>
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#notes">Notes</a>
+      <a href="https://github.com/Whning0513" target="_blank" rel="noopener">GitHub <span aria-hidden="true">&#8599;</span></a>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <article class="article-page">
+      <p class="article-kicker">Study note / 2026-09-09</p>
+      <h1>PPO: from policy gradients to clipping</h1>
+      <p class="article-lede">PPO is often introduced as one line of code with a clip. The useful part is understanding what that line is trying to protect.</p>
+      <p class="article-byline">A short derivation, then a few checks I want beside any implementation.</p>
+
+      <section>
+        <h2>1. Start with the policy gradient</h2>
+        <p>Let a policy π<sub>θ</sub> generate a trajectory τ in a discounted Markov decision process. We want to maximize</p>
+        <div class="math-block">\[J(\theta)=\mathbb{E}_{\tau\sim\pi_\theta}\!\left[\sum_{t=0}^{T-1}\gamma^t r_t\right].\]</div>
+        <p>The score-function identity gives the familiar policy gradient:</p>
+        <div class="math-block">\[\nabla_\theta J(\theta)=\mathbb{E}\!\left[\sum_t \nabla_\theta\log\pi_\theta(a_t\mid s_t)\,A^{\pi_\theta}(s_t,a_t)\right].\]</div>
+        <p>The sign is intuitive. A positive advantage asks the optimizer to make an action more likely. A negative advantage asks for the opposite. The baseline inside the advantage does not change the expected gradient, but a good baseline can reduce its variance.</p>
+      </section>
+
+      <section>
+        <h2>2. Reusing a batch creates a ratio</h2>
+        <p>Data in a PPO update came from a frozen old policy, not the policy after the first gradient step. Importance sampling corrects that mismatch:</p>
+        <div class="math-block">
+          \[r_t(\theta)=\frac{\pi_\theta(a_t\mid s_t)}{\pi_{\theta_{\mathrm{old}}}(a_t\mid s_t)},\qquad
+          L^{\mathrm{CPI}}(\theta)=\mathbb{E}_t[r_t(\theta)\hat A_t].\]
+        </div>
+        <p>At the start of an update, the ratio is one. After several minibatch epochs, it can drift. The same sampled action may then become much more or much less probable than it was under the behavior policy.</p>
+      </section>
+
+      <section>
+        <h2>3. The clipped surrogate is pessimistic</h2>
+        <p>PPO replaces the plain surrogate with</p>
+        <div class="math-block">
+          \[L^{\mathrm{CLIP}}(\theta)=\mathbb{E}_t\!\left[
+          \min\!\left(r_t(\theta)\hat A_t,
+          \operatorname{clip}(r_t(\theta),1-\epsilon,1+\epsilon)\hat A_t\right)\right].\]
+        </div>
+        <p>The minimum matters more than the clip by itself.</p>
+        <ul>
+          <li>If \(\hat A_t&gt;0\), raising the action probability stops earning extra surrogate reward once \(r_t&gt;1+\epsilon\).</li>
+          <li>If \(\hat A_t&lt;0\), lowering the action probability stops earning extra surrogate reward once \(r_t&lt;1-\epsilon\).</li>
+          <li>Movement in the bad direction is not hidden. The unclipped term remains the smaller term there.</li>
+        </ul>
+        <p>This is a local, pessimistic objective. It is not a hard trust region, and it does not guarantee a small KL divergence. I still want to log the approximate KL, clip fraction, entropy, and the distribution of ratios.</p>
+      </section>
+
+      <section>
+        <h2>4. Where the advantage comes from</h2>
+        <p>A common estimator is Generalized Advantage Estimation. Start from the one-step temporal-difference residual</p>
+        <div class="math-block">
+          \[\delta_t^V=r_t+\gamma V(s_{t+1})-V(s_t).\]
+        </div>
+        <p>Then add future residuals with a second decay factor:</p>
+        <div class="math-block">
+          \[\hat A_t^{\mathrm{GAE}(\gamma,\lambda)}=
+          \sum_{l=0}^{T-t-1}(\gamma\lambda)^l\delta_{t+l}^V.\]
+        </div>
+        <p>In code, the backwards recursion is usually clearer:</p>
+        <div class="math-block">
+          \[\hat A_t=\delta_t^V+\gamma\lambda(1-d_t)\hat A_{t+1},\]
+        </div>
+        <p>where \(d_t\) marks a true terminal transition. Time-limit truncation needs separate treatment if the value should bootstrap past it. Smaller \(\lambda\) leans harder on the critic and usually lowers variance; larger \(\lambda\) keeps more Monte Carlo information.</p>
+      </section>
+
+      <section>
+        <h2>5. The implemented loss has more than one part</h2>
+        <p>Under a maximize convention, a typical objective is</p>
+        <div class="math-block">
+          \[L(\theta,\phi)=L^{\mathrm{CLIP}}(\theta)-c_v L^V(\phi)+c_e\,\mathcal H(\pi_\theta).\]
+        </div>
+        <p>Many libraries minimize its negative. That sign convention is worth checking before reading a training curve. Value clipping, advantage normalization, reward scaling, and early stopping on KL are common additions, but they are implementation choices rather than the definition of PPO.</p>
+      </section>
+
+      <section>
+        <h2>6. Throughput is part of the math</h2>
+        <p>One recurring question in my experiment logs was whether fast environment steps imply fast PPO training. They do not. End-to-end time also includes policy inference, value inference, advantage calculation, backpropagation, optimizer steps, synchronization, and checkpointing.</p>
+        <p>The distinction becomes obvious in self-play. Four agents can produce many game events, while the learner still waits on batched network work. A reward change, such as penalizing fourth place more heavily in mahjong, also changes the optimization problem. It may reduce last-place frequency, or it may teach overly cautious play. Mean return alone will not distinguish the two.</p>
+        <p>My minimal dashboard would therefore include rollout tokens or environment steps per second, optimizer tokens per second, policy and value losses, KL, entropy, clip fraction, explained variance, and outcome quantiles.</p>
+      </section>
+
+      <section>
+        <h2>Quick checks</h2>
+        <ol>
+          <li>At the first epoch, is the probability ratio numerically close to one?</li>
+          <li>Are terminal states and time-limit truncations masked differently?</li>
+          <li>Does increasing the number of epochs raise KL and clip fraction as expected?</li>
+          <li>Can a tiny deterministic environment overfit before a large run starts?</li>
+          <li>Are environment throughput and learner throughput reported separately?</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>中文小结</h2>
+        <div class="zh-summary">
+          <p>PPO 的核心不是“把 ratio 截断”这么简单。旧策略采样后，重复更新会让新旧策略逐渐偏离；clipped surrogate 用一个偏保守的目标限制这批数据带来的收益。GAE 决定优势估计的偏差与方差，critic、终止状态和吞吐量统计则决定实现是否靠谱。</p>
+        </div>
+      </section>
+
+      <section class="references">
+        <h2>References</h2>
+        <ul>
+          <li>Schulman et al., <a href="https://arxiv.org/abs/1707.06347">Proximal Policy Optimization Algorithms</a>, 2017.</li>
+          <li>Schulman et al., <a href="https://arxiv.org/abs/1506.02438">High-Dimensional Continuous Control Using Generalized Advantage Estimation</a>, 2015.</li>
+          <li>Schulman et al., <a href="https://arxiv.org/abs/1502.05477">Trust Region Policy Optimization</a>, 2015.</li>
+        </ul>
+      </section>
+
+      <p><a class="inline-link" href="../index.html#notes">Back to notes <span aria-hidden="true">&#8592;</span></a></p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <span>&copy; 2026 Whning</span>
+    <a href="https://github.com/Whning0513" target="_blank" rel="noopener">github.com/Whning0513 <span aria-hidden="true">&#8599;</span></a>
+  </footer>
+</body>
+</html>
