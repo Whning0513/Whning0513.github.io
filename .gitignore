@@ -7,6 +7,9 @@
 !.github/
 !.github/workflows/
 !.github/workflows/pages.yml
+!.github/workflows/check-site.yml
 !.nojekyll
 !notes/
 !notes/*.html
+!scripts/
+!scripts/check_site.py
