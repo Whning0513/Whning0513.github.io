@@ -124,6 +124,25 @@ h2 {
 }
 .note-link { text-decoration: none; }
 .note-link:hover, .note-link:focus-visible { color: var(--accent); }
+.project-list { margin-top: .25rem; }
+.project-row {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  border-bottom: 1px solid var(--line);
+  padding: 1.25rem 0;
+}
+.project-title { margin-bottom: .35rem; font-size: 1rem; font-weight: 600; line-height: 1.45; }
+.project-link { text-decoration: none; }
+.project-link:hover, .project-link:focus-visible { color: var(--accent); }
+.project-meta { margin-bottom: 0; color: var(--muted); font-size: .8rem; line-height: 1.45; }
+.project-description { max-width: 42rem; margin-bottom: 0; color: var(--muted); font-size: .95rem; line-height: 1.55; }
+.about-copy { max-width: 42rem; }
+.about-copy p { margin-bottom: .85rem; }
+.about-copy p:last-child { margin-bottom: 0; }
+.text-link { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: .2em; }
+.text-link:hover, .text-link:focus-visible { color: var(--accent); text-decoration-color: var(--accent); }
 .article-page { max-width: 760px; padding: 4rem 0 5rem; }
 .article-kicker {
   margin-bottom: 1.35rem;
@@ -224,7 +243,7 @@ h2 {
 @media (max-width: 760px) {
   .site-header, main, .site-footer { width: min(calc(100% - 32px), var(--max)); }
   .site-header { min-height: 64px; padding: .85rem 0; }
-  .site-nav { justify-content: flex-end; gap: .55rem 1rem; line-height: 1.4; }
+  .site-nav { justify-content: flex-end; gap: .4rem .8rem; line-height: 1.4; }
   .hero { padding: 2.5rem 0 2.25rem; }
   h1 { font-size: 1.85rem; }
   .hero-lede { max-width: 32rem; }
@@ -232,6 +251,7 @@ h2 {
   h2 { font-size: .95rem; }
   .note-row { grid-template-columns: 1fr; gap: .4rem; padding: 1.1rem 0; }
   .note-date { grid-column: auto; grid-row: auto; justify-self: start; order: initial; }
+  .project-row { grid-template-columns: 1fr; gap: .4rem; padding: 1.1rem 0; }
   .article-page { padding: 3.5rem 0 4rem; }
   .article-page section { margin-top: 3rem; }
   .site-footer { align-items: flex-start; flex-direction: column; padding-bottom: 1.5rem; }
