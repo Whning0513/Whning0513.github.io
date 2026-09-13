@@ -200,6 +200,22 @@ h2 {
   line-height: 1.6;
 }
 .article-page pre code { padding: 0; background: transparent; }
+.note-figure {
+  max-width: 680px;
+  margin: 1.5rem 0;
+}
+.note-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+}
+.note-figure figcaption {
+  margin-top: .6rem;
+  color: var(--muted);
+  font-size: .9rem;
+  line-height: 1.5;
+}
 .article-callout {
   margin-top: 3.5rem;
   border-top: 1px solid var(--line);
