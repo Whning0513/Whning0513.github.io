@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 320" role="img" aria-labelledby="title desc">
+  <title id="title">数值积分示意图</title>
+  <desc id="desc">曲线下的面积用节点和权重近似，阴影表示积分区域，橙色线段表示近似。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6" fill="none" stroke="#77736b" stroke-width="1.2"/>
+    </marker>
+  </defs>
+  <rect width="760" height="320" fill="#fbfaf7"/>
+  <g fill="none" stroke="#77736b" stroke-width="1.4">
+    <path d="M58 250 H712" marker-end="url(#arrow)"/>
+    <path d="M82 270 V42" marker-end="url(#arrow)"/>
+  </g>
+  <g fill="#77736b" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="15">
+    <text x="716" y="255">x</text>
+    <text x="68" y="38">f(x)</text>
+  </g>
+  <path d="M100 250 C160 238 190 164 255 145 C322 125 358 144 413 104 C477 58 530 78 570 125 C611 173 620 222 690 232 L690 250 Z"
+        fill="#dedbd4" opacity=".72"/>
+  <path d="M100 250 C160 238 190 164 255 145 C322 125 358 144 413 104 C477 58 530 78 570 125 C611 173 620 222 690 232"
+        fill="none" stroke="#77736b" stroke-width="2.2"/>
+  <g stroke="#a44b35" stroke-width="2.4" fill="none">
+    <path d="M100 250 L255 145 L413 104 L570 125 L690 232"/>
+  </g>
+  <g fill="#a44b35">
+    <circle cx="100" cy="250" r="4"/>
+    <circle cx="255" cy="145" r="4"/>
+    <circle cx="413" cy="104" r="4"/>
+    <circle cx="570" cy="125" r="4"/>
+    <circle cx="690" cy="232" r="4"/>
+  </g>
+  <g stroke="#b9b4aa" stroke-width="1.1" stroke-dasharray="4 5">
+    <path d="M255 145 V250"/>
+    <path d="M413 104 V250"/>
+    <path d="M570 125 V250"/>
+  </g>
+  <g fill="#292825" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="16">
+    <text x="470" y="72">积分 ≈ 节点值 × 权重</text>
+    <text x="245" y="277">xᵢ</text>
+    <text x="404" y="277">节点</text>
+  </g>
+</svg>
