@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 280" role="img" aria-labelledby="title desc">
+  <title id="title">图算法的三种视角</title>
+  <desc id="desc">从同一张加权图上分别观察遍历、最短路径和最小生成树。</desc>
+  <style>
+    .bg { fill: #fbfaf7; }
+    .ink { fill: #242522; font: 600 17px "Segoe UI", "Microsoft YaHei", sans-serif; }
+    .muted { fill: #6f7069; font: 14px "Segoe UI", "Microsoft YaHei", sans-serif; }
+    .label { fill: #b34b32; font: 600 14px "Segoe UI", "Microsoft YaHei", sans-serif; }
+    .edge { stroke: #c8c6bf; stroke-width: 2; }
+    .tree { stroke: #b34b32; stroke-width: 4; }
+    .node { fill: #fff; stroke: #242522; stroke-width: 2; }
+    .start { fill: #b34b32; stroke: #b34b32; stroke-width: 2; }
+    .num { fill: #242522; font: 600 13px "Segoe UI", sans-serif; text-anchor: middle; dominant-baseline: middle; }
+  </style>
+  <rect class="bg" width="760" height="280"/>
+  <text class="label" x="32" y="32">一张图，三个问题</text>
+  <line class="edge" x1="32" y1="49" x2="728" y2="49"/>
+
+  <text class="ink" x="46" y="80">遍历</text>
+  <text class="muted" x="46" y="101">DFS / BFS：把顶点系统地走一遍</text>
+  <line class="edge" x1="104" y1="161" x2="164" y2="130"/>
+  <line class="edge" x1="104" y1="161" x2="164" y2="194"/>
+  <line class="edge" x1="164" y1="130" x2="224" y2="161"/>
+  <line class="edge" x1="164" y1="194" x2="224" y2="161"/>
+  <line class="edge" x1="224" y1="161" x2="224" y2="218"/>
+  <circle class="start" cx="104" cy="161" r="16"/><text class="num" x="104" y="161" fill="#fff">s</text>
+  <circle class="node" cx="164" cy="130" r="16"/><text class="num" x="164" y="130">1</text>
+  <circle class="node" cx="164" cy="194" r="16"/><text class="num" x="164" y="194">2</text>
+  <circle class="node" cx="224" cy="161" r="16"/><text class="num" x="224" y="161">3</text>
+  <circle class="node" cx="224" cy="218" r="16"/><text class="num" x="224" y="218">4</text>
+
+  <text class="ink" x="286" y="80">最短路径</text>
+  <text class="muted" x="286" y="101">边有权且非负：每次确定当前最小的 dist</text>
+  <line class="edge" x1="344" y1="161" x2="404" y2="130"/>
+  <line class="edge" x1="344" y1="161" x2="404" y2="194"/>
+  <line class="edge" x1="404" y1="130" x2="464" y2="161"/>
+  <line class="edge" x1="404" y1="194" x2="464" y2="161"/>
+  <line class="tree" x1="344" y1="161" x2="404" y2="130"/>
+  <line class="tree" x1="404" y1="130" x2="464" y2="161"/>
+  <circle class="start" cx="344" cy="161" r="16"/><text class="num" x="344" y="161" fill="#fff">s</text>
+  <circle class="node" cx="404" cy="130" r="16"/><text class="num" x="404" y="130">1</text>
+  <circle class="node" cx="404" cy="194" r="16"/><text class="num" x="404" y="194">2</text>
+  <circle class="node" cx="464" cy="161" r="16"/><text class="num" x="464" y="161">3</text>
+
+  <text class="ink" x="526" y="80">最小生成树</text>
+  <text class="muted" x="526" y="101">连通所有顶点，但不要求从某点最短</text>
+  <line class="edge" x1="584" y1="161" x2="644" y2="130"/>
+  <line class="edge" x1="584" y1="161" x2="644" y2="194"/>
+  <line class="edge" x1="644" y1="130" x2="704" y2="161"/>
+  <line class="edge" x1="644" y1="194" x2="704" y2="161"/>
+  <line class="tree" x1="584" y1="161" x2="644" y2="130"/>
+  <line class="tree" x1="584" y1="161" x2="644" y2="194"/>
+  <line class="tree" x1="644" y1="130" x2="704" y2="161"/>
+  <circle class="node" cx="584" cy="161" r="16"/><text class="num" x="584" y="161">0</text>
+  <circle class="node" cx="644" cy="130" r="16"/><text class="num" x="644" y="130">1</text>
+  <circle class="node" cx="644" cy="194" r="16"/><text class="num" x="644" y="194">2</text>
+  <circle class="node" cx="704" cy="161" r="16"/><text class="num" x="704" y="161">3</text>
+
+  <text class="muted" x="32" y="258">不要把最短路径、最小生成树和遍历混成同一个目标；它们使用的贪心依据不同。</text>
+</svg>
