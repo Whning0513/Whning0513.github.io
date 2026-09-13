@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="数值分析学习笔记：求根、插值、样条、差分、最小二乘与数值积分。">
+  <meta name="description" content="数值分析学习笔记：计算机算术、稳定性、非线性方程、逼近、插值、样条、最小二乘与数值积分。">
   <meta name="theme-color" content="#f4f3ef">
   <title>数值分析 | Whning</title>
   <link rel="stylesheet" href="../css/home.css">
@@ -28,157 +28,560 @@
     <article class="article-page">
       <p class="article-kicker">Study note / 2026-09-13</p>
       <h1>数值分析</h1>
-      <p class="article-lede">求根、插值、样条、差分和积分。</p>
-      <p class="article-byline">先放一页总览，再把常用的式子排在一起。</p>
+      <p class="article-lede">按教材第 1、2、4–9 章整理。第 3 章线性方程组见<a class="text-link" href="20260913-01.html">数值代数</a>。</p>
+      <p class="article-byline">定义先于公式，误差和适用条件跟在方法后面。</p>
 
       <section class="note-intro">
-        <h2>一页总览</h2>
+        <h2>范围</h2>
+        <div class="article-table-wrap">
+          <table>
+            <thead>
+              <tr><th>章节</th><th>这里保留的主线</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1–2</td><td>浮点数、舍入误差、条件数、稳定性</td></tr>
+              <tr><td>4</td><td>非线性方程与非线性方程组</td></tr>
+              <tr><td>5–7</td><td>一致逼近、插值、样条</td></tr>
+              <tr><td>8</td><td>正交系统、最小二乘与正则化</td></tr>
+              <tr><td>9</td><td>数值积分与数值微分</td></tr>
+            </tbody>
+          </table>
+        </div>
         <figure class="note-figure">
           <a class="note-image-link" href="assets/numerical-analysis/numerical-analysis-overview.png" target="_blank" rel="noopener">
             <img src="assets/numerical-analysis/numerical-analysis-overview.png" alt="数值分析手写总览，包含求根、插值、样条、最小二乘和数值积分" loading="lazy">
           </a>
-          <figcaption>原图比较宽，点图可以单独打开。</figcaption>
+          <figcaption>手写总览。原图比较宽，点图可以单独打开。</figcaption>
         </figure>
       </section>
 
       <section>
-        <h2>1. 求根</h2>
+        <h2>1. 计算机算术</h2>
+        <h3>浮点数系统</h3>
+        <p>计算机只保存有限位数的数。一个规范化的浮点数写成</p>
+        <div class="math-block">
+          \[x=\pm m\,\beta^e,\qquad
+          m=d_0+\frac{d_1}{\beta}+\cdots+\frac{d_{p-1}}{\beta^{p-1}},
+          \qquad 1\le m&lt;\beta.\]
+        </div>
+        <p>\(\beta\) 是进制，\(p\) 是有效数字位数，\(e\in[L,U]\) 是指数范围。规范化后，最高位不为零；不同指数区间的间隔不同，所以浮点数在数轴上并不是等距的。</p>
+        <p>教材用机器精度 \(\varepsilon_M=\beta^{1-p}\) 描述 \(1\) 与下一个浮点数之间的距离，并用 \(u\) 记舍入的单位量。对 IEEE 754 的双精度，\(\varepsilon_M\approx2.22\times10^{-16}\)。指数超出范围时发生上溢或下溢：</p>
+        <div class="math-block">
+          \[\operatorname{UFL}=\beta^L,\qquad
+          \operatorname{OFL}=\beta^U\bigl(\beta-\beta^{1-p}\bigr).\]
+        </div>
+
+        <h3>舍入和基本运算</h3>
+        <p>舍入是从实数到浮点数的映射 \(\operatorname{fl}\)。默认模式是就近舍入，恰好位于中点时取偶数位。只要结果没有上溢或下溢，常用模型是</p>
+        <div class="math-block">
+          \[\operatorname{fl}(x)=x(1+\delta),\qquad |\delta|\le u.\]
+        </div>
+        <p>对乘法和除法，这个模型通常可以直接使用。加法和减法还要考虑对阶以及结果本身的尺度；如果两个数几乎相等，减法会把前面已经存在的误差一起放大。</p>
+        <p>若 \(a_i&gt;0\)，连续求和的舍入误差可以合并写成</p>
+        <div class="math-block">
+          \[\operatorname{fl}\left(\sum_{i=0}^{n}a_i\right)
+          =\left(\sum_{i=0}^{n}a_i\right)(1+\delta_n),\qquad
+          |\delta_n|\lesssim n u.\]
+        </div>
+        <p>这里的线性增长是数量级估计，不是“任何顺序都一样”。长序列求和时，把大数和小数分开或使用补偿求和，都可以减小累计误差。</p>
+
+        <h3>灾难性消去</h3>
+        <p>设 \(x&gt;y&gt;0\)，如果 \(y/x\) 很接近 \(1\)，则 \(x-y\) 的有效位数会明显减少。计算中原来的相对误差大致按</p>
+        <div class="math-block">
+          \[\frac{|x\delta_1-y\delta_2|}{|x-y|}\]
+        </div>
+        <p>被放大。能改写时，优先使用等价但不相消的表达式。例如 \(x\) 很小时，不直接算 \(1-\cos x\)，而写成 \(2\sin^2(x/2)\)；不直接算 \(x-\sin x\)，而使用</p>
+        <div class="math-block">
+          \[x-\sin x=\frac{x^3}{3!}-\frac{x^5}{5!}+\frac{x^7}{7!}-\cdots.\]
+        </div>
+        <p>“每一步都满足相对误差很小”并不能推出最终结果可靠；表达式的条件数和运算顺序要一起检查。</p>
+      </section>
+
+      <section>
+        <h2>2. 稳定性与条件数</h2>
+        <figure class="diagram-figure">
+          <img src="assets/numerical-analysis/error-stability.svg" alt="输入扰动经过问题条件数和算法稳定性后形成输出误差的示意图" loading="lazy">
+          <figcaption>输入误差先经过问题本身的条件数，再叠加算法的舍入误差。</figcaption>
+        </figure>
+
+        <h3>前向误差和后向误差</h3>
+        <p>设精确量为 \(x\)，计算结果为 \(\widehat{x}\)。绝对误差和相对误差分别为</p>
+        <div class="math-block">
+          \[E_{\mathrm{abs}}(\widehat{x})=|\widehat{x}-x|,\qquad
+          E_{\mathrm{rel}}(\widehat{x})=\frac{|\widehat{x}-x|}{|x|}.\]
+        </div>
+        <p>前向误差直接比较输出。后向误差反过来问：\(\widehat{y}\) 是不是某个轻微扰动输入的精确结果？如果存在 \(\widehat{x}=x+\Delta x\)，使</p>
+        <div class="math-block">
+          \[\widehat{y}=f(\widehat{x}),\qquad
+          \frac{\|\Delta x\|}{\|x\|}\ \text{很小},\]
+        </div>
+        <p>就称算法在这个输入上后向稳定。后向稳定并不等于输出误差一定小；它还需要问题 \(f\) 本身是良态的。</p>
+
+        <h3>条件数：问题对输入有多敏感</h3>
+        <p>对可微的标量函数，绝对条件数和相对条件数可写为</p>
+        <div class="math-block">
+          \[\operatorname{cond}_{\mathrm{abs}}f(x)=|f'(x)|,\qquad
+          \operatorname{cond}f(x)=\left|\frac{x f'(x)}{f(x)}\right|.\]
+        </div>
+        <p>相对扰动很小时，输出相对误差的一阶估计是</p>
+        <div class="math-block">
+          \[\frac{|\Delta f|}{|f(x)|}
+          \approx \operatorname{cond}f(x)\frac{|\Delta x|}{|x|}.\]
+        </div>
+        <p>向量函数用 Jacobian \(J_f(x)\) 描述。常见的相对估计为</p>
+        <div class="math-block">
+          \[\operatorname{cond}f(x)\approx
+          \frac{\|x\|\,\|J_f(x)\|}{\|f(x)\|}.\]
+        </div>
+        <p>线性方程组 \(Ax=b\) 对矩阵和右端项的敏感度由</p>
+        <div class="math-block">
+          \[\operatorname{cond}(A)=\|A\|\,\|A^{-1}\|\]
+        </div>
+        <p>控制。条件数大，表示问题本身会放大数据误差；换一个算法不能改变这个事实，只能避免额外放大。</p>
+
+        <h3>稳定的算法和总误差</h3>
+        <p>算法的签名不只包括输入和输出，还包括前置条件、后置条件，以及输入不满足条件时的处理方式。实际计算通常包含三件事：先把 \(x\) 舍入成 \(x^\ast\)，再用算法求 \(f_A(x^\ast)\)，最后比较 \(f_A(x^\ast)\) 与 \(f(x)\)。一阶估计可以写成</p>
+        <div class="math-block">
+          \[E_{\mathrm{rel}}\bigl(f_A(x^\ast)\bigr)
+          \lesssim E_{\mathrm{rel}}(x^\ast)\operatorname{cond}f(x)
+          +u\,\operatorname{cond}f(x^\ast)\operatorname{cond}_A(x^\ast).\]
+        </div>
+        <p>第一项是数据输入和问题条件数的作用，第二项是算法误差。判断一个结果时，先问问题是否良态，再问算法是否稳定，不能只看最后输出的几位数字。</p>
+      </section>
+
+      <section>
+        <h2>4. 非线性方程</h2>
         <figure class="diagram-figure">
           <img src="assets/numerical-analysis/root-finding.svg" alt="二分法缩小区间与 Newton 切线迭代的示意图" loading="lazy">
-          <figcaption>二分法保住区间，Newton 法沿切线走。</figcaption>
+          <figcaption>二分法保留变号区间，Newton 法使用局部切线。</figcaption>
         </figure>
-        <p>先解 \(f(x)=0\)。二分法要求 \(f(a)f(b)&lt;0\)，每次留下符号相反的一半：</p>
+
+        <h3>二分法</h3>
+        <p>目标是求 \(f(\alpha)=0\)。若 \(f\in C[a,b]\) 且 \(f(a)f(b)&lt;0\)，介值定理保证区间内至少有一个根。第 \(k\) 次取中点</p>
         <div class="math-block">
           \[m_k=\frac{a_k+b_k}{2},\qquad
-          |m_k-x^\ast|\leq\frac{b-a}{2^{k+1}}.\]
+          [a_k,b_k]\ \text{保留变号的一半}.\]
         </div>
-        <p>Newton 法用切线：</p>
+        <p>不变量是 \(f(a_k)f(b_k)\le0\)。区间长度和中点误差满足</p>
+        <div class="math-block">
+          \[b_k-a_k=2^{-k}(b_0-a_0),\qquad
+          |m_k-\alpha|\le2^{-(k+1)}(b_0-a_0).\]
+        </div>
+        <p>因此它一定收敛，Q-线性渐近因子为 \(1/2\)。停止条件可以是 \(|f(m_k)|&lt;\varepsilon\)、区间长度小于 \(\delta\)，或达到最大迭代次数。函数连续和初始变号是正确性的前提。</p>
+
+        <h3>收敛阶</h3>
+        <p>若 \(x_k\to L\)，且极限存在并满足</p>
+        <div class="math-block">
+          \[\lim_{k\to\infty}\frac{|x_{k+1}-L|}{|x_k-L|^p}=c&gt;0,\]
+        </div>
+        <p>则称为 Q-阶 \(p\) 收敛。\(p=1\) 是线性收敛，\(p=2\) 是二次收敛。阶数描述后期误差的下降速度，不保证远离根时也会收敛。</p>
+
+        <h3>Newton 法和割线法</h3>
+        <p>Newton 迭代为</p>
         <div class="math-block">
           \[x_{k+1}=x_k-\frac{f(x_k)}{f'(x_k)}.\]
         </div>
-        <p>割线法不求导：</p>
+        <p>若 \(f\in C^2\)，\(\alpha\) 是单根（\(f'(\alpha)\ne0\)），且初值足够接近 \(\alpha\)，则至少二次收敛；误差关系为</p>
         <div class="math-block">
-          \[x_{k+1}=x_k-f(x_k)\frac{x_k-x_{k-1}}{f(x_k)-f(x_{k-1})},
-          \qquad p=\frac{1+\sqrt5}{2}.\]
+          \[e_{k+1}\approx\frac{f''(\alpha)}{2f'(\alpha)}e_k^2,
+          \qquad e_k=x_k-\alpha.\]
         </div>
-        <p>固定点迭代写成 \(x=g(x)\)。解附近若 \(|g'(x)|\leq q&lt;1\)，就会收敛。初值和 \(g\) 的选法，常常比公式本身更要紧。</p>
+        <p>初值太远、导数接近零或函数有多个根时，Newton 法可能发散或跳到另一个根。若 \(\alpha\) 是 \(m\) 重根，可用修正迭代 \(x_{k+1}=x_k-mf(x_k)/f'(x_k)\) 恢复二次阶。</p>
+        <p>割线法用差商代替导数：</p>
+        <div class="math-block">
+          \[x_{k+1}=x_k-f(x_k)
+          \frac{x_k-x_{k-1}}{f(x_k)-f(x_{k-1})}.\]
+        </div>
+        <p>它不需要 \(f'\)，在条件合适时 Q-阶为黄金比 \(\varphi=(1+\sqrt5)/2\)，介于线性和二次之间。</p>
+
+        <h3>固定点和方程组</h3>
+        <p>把方程改写成 \(x=g(x)\)。若 \(g:[a,b]\to[a,b]\)，且 \(|g'(x)|\le q&lt;1\)，则迭代 \(x_{k+1}=g(x_k)\) 有唯一不动点，并满足</p>
+        <div class="math-block">
+          \[|x_k-\alpha|\le
+          \frac{q^k}{1-q}|x_1-x_0|.\]
+        </div>
+        <p>局部判断通常看 \(|g'(\alpha)|\)：小于 \(1\) 才有局部收敛，等于零时可能出现更高阶收敛。不同的等价改写会改变这个导数，所以“方程相同”不代表迭代性质相同。</p>
+        <p>对 \(F(x)=0\)，Newton 法变成</p>
+        <div class="math-block">
+          \[J_F(x_k)s_k=-F(x_k),\qquad x_{k+1}=x_k+s_k.\]
+        </div>
+        <p>每一步要解一个线性方程组。Jacobian 难以计算时，可以用 Broyden 一类的拟 Newton 方法逐步更新 \(J_F\) 或其逆的近似，换取较少的导数计算，但要额外关注更新矩阵是否退化。</p>
+        <p>以更新 Jacobian 近似 \(B_k\) 为例，令 \(s_k=x_{k+1}-x_k\)、\(y_k=F(x_{k+1})-F(x_k)\)，一个常见的秩一更新为</p>
+        <div class="math-block">
+          \[B_{k+1}=B_k+
+          \frac{(y_k-B_ks_k)s_k^\mathsf{T}}{s_k^\mathsf{T}s_k},\qquad
+          B_{k+1}s_k=y_k.\]
+        </div>
+
+        <div class="article-table-wrap">
+          <table>
+            <thead>
+              <tr><th>方法</th><th>主要条件</th><th>局部速度</th><th>特点</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>二分</td><td>连续、初始变号</td><td>线性</td><td>稳健，有区间误差界</td></tr>
+              <tr><td>Newton</td><td>导数、初值较近</td><td>二次</td><td>快，但对初值敏感</td></tr>
+              <tr><td>割线</td><td>两次函数值</td><td>\(\varphi\) 阶</td><td>不求导</td></tr>
+              <tr><td>固定点</td><td>压缩映射</td><td>通常线性</td><td>改写方式决定收敛性</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section>
-        <h2>2. 插值</h2>
+        <h2>5. 一致逼近</h2>
+        <h3>范数和最佳逼近</h3>
+        <p>在 \(C[a,b]\) 上，统一范数为</p>
+        <div class="math-block">
+          \[\|f\|_\infty=\max_{x\in[a,b]}|f(x)|.\]
+        </div>
+        <p>给定函数空间 \(X\)，最佳逼近 \(\widehat\varphi\in X\) 满足</p>
+        <div class="math-block">
+          \[\|f-\widehat\varphi\|
+          =\min_{\varphi\in X}\|f-\varphi\|.\]
+        </div>
+        <p>有限维子空间中，最佳逼近存在。唯一性还要看范数：严格凸范数下唯一；一致范数一般不严格凸，所以需要额外条件。</p>
+
+        <h3>最小最大逼近</h3>
+        <p>在 \(P_n\) 中取一致范数时，误差 \(e=f-p^\ast\) 的特征是交错定理：存在 \(n+2\) 个点</p>
+        <div class="math-block">
+          \[a\le x_0&lt;x_1&lt;\cdots&lt;x_{n+1}\le b,\qquad
+          e(x_i)=(-1)^i\sigma E,\qquad E=\|e\|_\infty.\]
+        </div>
+        <p>符号交替且绝对值都达到最大值，是判断一个多项式是否为 minimax 逼近的实用条件。它也解释了为什么只在某一个局部把误差压得很小，不代表整体误差已经最优。</p>
+
+        <h3>Bernstein 多项式和 Weierstrass 定理</h3>
+        <p>在 \([0,1]\) 上，Bernstein 基函数为</p>
+        <div class="math-block">
+          \[b_{k,n}(t)=\binom nk t^k(1-t)^{n-k},\qquad
+          \sum_{k=0}^{n}b_{k,n}(t)=1.\]
+        </div>
+        <p>Bernstein 算子用 \(k/n\) 处的函数值定义：</p>
+        <div class="math-block">
+          \[(B_nf)(t)=\sum_{k=0}^{n}f\left(\frac{k}{n}\right)b_{k,n}(t).\]
+        </div>
+        <p>基函数非负且构成分割统一，因此 \(B_n\) 保持常数和单调性。对每个连续函数，\(\|B_nf-f\|_\infty\to0\)，这给出 Weierstrass 多项式逼近定理。</p>
+
+        <h3>连续模和 Jackson 估计</h3>
+        <p>函数的连续模记录尺度 \(\delta\) 上的最大变化：</p>
+        <div class="math-block">
+          \[\omega_f(\delta)=
+          \sup_{\substack{x,y\in[a,b]\\|x-y|\le\delta}}|f(x)-f(y)|.\]
+        </div>
+        <p>它把“连续”变成了可估计的量。教材给出的 Bernstein 估计（在 \([0,1]\) 上）是</p>
+        <div class="math-block">
+          \[\|f-B_nf\|_\infty
+          \le\frac32\,\omega_f\left(\frac1{\sqrt n}\right).\]
+        </div>
+        <p>更一般的 Jackson 型估计在 \([-1,1]\) 上写作</p>
+        <div class="math-block">
+          \[E_n(f):=\inf_{p\in P_n}\|f-p\|_\infty
+          \le 6\,\omega_f\left(\frac1n\right).\]
+        </div>
+        <p>因此函数越光滑，或者连续模下降得越快，所需的多项式次数越低。逼近阶数不是只由 \(n\) 决定，也取决于被逼近函数。</p>
+
+        <h3>Chebyshev 多项式</h3>
+        <p>第一类 Chebyshev 多项式用三角函数定义：</p>
+        <div class="math-block">
+          \[T_n(x)=\cos\bigl(n\arccos x\bigr),\qquad -1\le x\le1.\]
+        </div>
+        <p>它满足递推 \(T_0=1\)、\(T_1=x\)、\(T_{n+1}=2xT_n-T_{n-1}\)，并且 \(|T_n(x)|\le1\)（\(x\in[-1,1]\)）。在所有首项系数为 \(2^{n-1}\) 的 \(n\) 次多项式中，\(T_n\) 的最大绝对值最小；这也是 Chebyshev 节点和最小最大逼近反复出现的原因。带权内积</p>
+        <div class="math-block">
+          \[\langle u,v\rangle=
+          \int_{-1}^{1}\frac{u(x)v(x)}{\sqrt{1-x^2}}\,dx\]
+        </div>
+        <p>下的 Chebyshev 多项式彼此正交。</p>
+      </section>
+
+      <section>
+        <h2>6. 多项式插值</h2>
         <figure class="diagram-figure">
           <img src="assets/numerical-analysis/interpolation.svg" alt="插值节点与插值曲线的示意图" loading="lazy">
-          <figcaption>节点给出以后，曲线只是其中一种重建方式。</figcaption>
+          <figcaption>插值要求曲线经过给定节点；节点位置决定了误差和稳定性。</figcaption>
         </figure>
-        <p>Lagrange 形式：</p>
+
+        <h3>存在唯一性和 Vandermonde 行列式</h3>
+        <p>给定 \(n+1\) 个互异节点 \(x_0,\ldots,x_n\) 和函数值 \(f_i\)，在 \(P_n\) 中存在唯一多项式 \(p_n\) 满足 \(p_n(x_i)=f_i\)。幂基下的线性系统使用 Vandermonde 矩阵，其行列式为</p>
+        <div class="math-block">
+          \[\det V(x_0,\ldots,x_n)
+          =\prod_{0\le i&lt;j\le n}(x_j-x_i).\]
+        </div>
+        <p>节点相等时行列式为零；节点靠得过近或次数过高时，矩阵可能严重病态。实际计算通常避免直接解幂基下的 Vandermonde 系统。</p>
+
+        <h3>Lagrange、Newton 和 Neville–Aitken</h3>
+        <p>Lagrange 形式直接显示每个节点的作用：</p>
         <div class="math-block">
           \[\ell_i(x)=\prod_{j\ne i}\frac{x-x_j}{x_i-x_j},\qquad
           p_n(x)=\sum_{i=0}^{n}f(x_i)\ell_i(x).\]
         </div>
-        <p>Newton 形式方便逐点添加数据：</p>
+        <p>Newton 形式使用差商。差商递推为</p>
         <div class="math-block">
-          \[p_n(x)=f[x_0]+\sum_{k=1}^{n}f[x_0,\ldots,x_k]
-          \prod_{j=0}^{k-1}(x-x_j).\]
+          \[f[x_i,\ldots,x_{i+k}]
+          =\frac{f[x_{i+1},\ldots,x_{i+k}]
+          -f[x_i,\ldots,x_{i+k-1}]}{x_{i+k}-x_i},\]
         </div>
-        <p>余项：</p>
+        <div class="math-block">
+          \[p_n(x)=f[x_0]+f[x_0,x_1](x-x_0)+\cdots
+          +f[x_0,\ldots,x_n]\prod_{j=0}^{n-1}(x-x_j).\]
+        </div>
+        <p>添加一个节点时，Newton 表达式只需增加一项。Neville–Aitken 则直接在目标点 \(x\) 上递推：</p>
+        <div class="math-block">
+          \[p_{i,0}(x)=f(x_i),\qquad
+          p_{i,j}(x)=
+          \frac{(x_j-x)p_{i,j-1}(x)+(x-x_i)p_{i+1,j-1}(x)}
+          {x_j-x_i}.\]
+        </div>
+
+        <h3>余项、节点和 Lebesgue 常数</h3>
+        <p>若 \(f\in C^{n+1}[a,b]\)，插值余项为</p>
         <div class="math-block">
           \[f(x)-p_n(x)=\frac{f^{(n+1)}(\xi)}{(n+1)!}
-          \prod_{i=0}^{n}(x-x_i).\]
+          \prod_{i=0}^{n}(x-x_i),\qquad \xi\in(a,b).\]
         </div>
-        <p>等距节点的高次插值可能出现 Runge 现象。Chebyshev 节点把点往端点附近挤：</p>
+        <p>等距节点在次数升高时可能出现 Runge 现象。Chebyshev 节点（先写在 \([-1,1]\) 上）为</p>
         <div class="math-block">
-          \[x_i=\cos\frac{(2i+1)\pi}{2n+2},\qquad i=0,\ldots,n.\]
+          \[x_i=\cos\frac{(2i+1)\pi}{2n+2},\qquad i=0,\ldots,n,\]
         </div>
+        <p>它们在端点附近更密，可以控制节点乘积和振荡。</p>
+        <p>更一般地，Lebesgue 函数和 Lebesgue 常数定义为</p>
+        <div class="math-block">
+          \[\Lambda_n(x)=\sum_{i=0}^{n}|\ell_i(x)|,\qquad
+          \Lambda_n=\max_{x\in[a,b]}\Lambda_n(x).\]
+        </div>
+        <div class="math-block">
+          \[\|f-p_n\|_\infty
+          \le(1+\Lambda_n)\inf_{q\in P_n}\|f-q\|_\infty.\]
+        </div>
+        <p>右侧把函数本身的最佳逼近误差和插值过程的放大因子分开。Chebyshev 节点的 \(\Lambda_n\) 只按对数增长，而等距节点的增长更快。</p>
+
+        <h3>Hermite 插值和 Bézier 曲线</h3>
+        <p>Hermite 插值除了函数值，还指定导数值。若节点 \(x_i\) 的条件重数为 \(m_i\)，总条件数为 \(N=\sum_i m_i\)，则余项形式是</p>
+        <div class="math-block">
+          \[f(x)-H(x)=\frac{f^{(N)}(\xi)}{N!}
+          \prod_i(x-x_i)^{m_i}.\]
+        </div>
+        <p>Bézier 曲线使用 Bernstein 基函数表示控制点 \(P_i\)：</p>
+        <div class="math-block">
+          \[B(t)=\sum_{i=0}^{n}\binom ni t^i(1-t)^{n-i}P_i,\qquad 0\le t\le1.\]
+        </div>
+        <p>曲线经过 \(P_0,P_n\)，端点切向由相邻控制点决定，并且落在控制点凸包内。De Casteljau 递推比直接展开多项式更适合计算和几何构造。</p>
       </section>
 
       <section>
-        <h2>3. 样条</h2>
-        <p>三次样条在每个区间上只用一个三次多项式：</p>
+        <h2>7. 一元多项式样条</h2>
+        <h3>PP 形式和三次样条</h3>
+        <p>样条在每个小区间上是低次多项式，并在节点处保持指定阶数的光滑性。三次样条的分段形式为</p>
         <div class="math-block">
           \[s_i(x)=a_i+b_i(x-x_i)+c_i(x-x_i)^2+d_i(x-x_i)^3,
           \qquad x\in[x_i,x_{i+1}].\]
         </div>
-        <p>节点处接上函数值、一阶导数和二阶导数。自然边界是 \(s''(a)=s''(b)=0\)。令 \(h_i=x_{i+1}-x_i\)，\(M_i=s''(x_i)\)，内部节点满足</p>
+        <p>插值条件 \(s(x_i)=f_i\) 再加上节点处 \(s,s',s''\) 连续，就得到一个稀疏的线性系统。令 \(h_i=x_{i+1}-x_i\)，\(M_i=s''(x_i)\)，内部节点满足</p>
         <div class="math-block">
           \[h_{i-1}M_{i-1}+2(h_{i-1}+h_i)M_i+h_iM_{i+1}
-          =6\left(\frac{f_{i+1}-f_i}{h_i}-\frac{f_i-f_{i-1}}{h_{i-1}}\right).\]
+          =6\left(\frac{f_{i+1}-f_i}{h_i}
+          -\frac{f_i-f_{i-1}}{h_{i-1}}\right).\]
         </div>
-        <p>在光滑、网格合适时：</p>
+        <p>还需要两个边界条件。常用选择如下：</p>
+        <div class="article-table-wrap">
+          <table>
+            <thead>
+              <tr><th>边界</th><th>条件</th><th>适用场景</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>自然</td><td>\(s''(a)=s''(b)=0\)</td><td>没有端点斜率信息时的默认选择</td></tr>
+              <tr><td>完全 / clamped</td><td>指定 \(s'(a),s'(b)\)</td><td>端点导数已知</td></tr>
+              <tr><td>not-a-knot</td><td>端点附近两段合并为同一三次式</td><td>不希望人为指定端点导数</td></tr>
+              <tr><td>周期</td><td>端点处函数值及导数相接</td><td>周期数据</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>自然三次样条在满足插值和边界条件的函数中，使弯曲能量</p>
         <div class="math-block">
-          \[\lVert f-s\rVert_\infty=O(h^4),\qquad
-          \lVert f'-s'\rVert_\infty=O(h^3),\qquad
-          \lVert f''-s''\rVert_\infty=O(h^2).\]
+          \[\int_a^b |s''(x)|^2\,dx\]
         </div>
-        <p>B-spline 写成 \(s(x)=\sum_i c_iB_i(x)\)。基函数非负、局部有支撑，且 \(\sum_iB_i(x)=1\)。</p>
+        <p>达到最小。若 \(f\in C^4[a,b]\) 且网格足够规则，典型误差阶为</p>
+        <div class="math-block">
+          \[\|f-s\|_\infty=O(h^4),\qquad
+          \|f'-s'\|_\infty=O(h^3),\qquad
+          \|f''-s''\|_\infty=O(h^2).\]
+        </div>
+
+        <h3>Hermite 样条</h3>
+        <p>如果每个节点的函数值和一阶导数都已知，可以在相邻节点间使用三次 Hermite 多项式。每段的四个条件决定四个系数，段与段之间至少保持 \(C^1\) 连续。它适合已有斜率信息的曲线；只有函数值时，三次样条需要先由整体条件求出节点斜率或二阶导数。</p>
+
+        <h3>B 形式、截断幂和局部支撑</h3>
+        <p>同一个样条也可以写成 B-spline 的线性组合：</p>
+        <div class="math-block">
+          \[s(x)=\sum_i c_i B_{i,n}(x).\]
+        </div>
+        <p>由截断幂函数 \((x-t)_+^n\) 可以构造 B-spline。次数为 \(n\) 的基函数只在</p>
+        <div class="math-block">
+          \[\operatorname{supp}B_{i,n}=[t_i,t_{i+n+1}]\]
+        </div>
+        <p>上非零，所以每个 \(x\) 只涉及少数系数。标准节点设置下，\(B_{i,n}\ge0\)，并有分割统一性质 \(\sum_iB_{i,n}(x)=1\)。这带来局部修改、较好的数值稳定性和稀疏的拟合系统。</p>
+        <p>导数仍是低一阶 B-spline 的组合：</p>
+        <div class="math-block">
+          \[B'_{i,n}(x)=
+          \frac{n}{t_{i+n}-t_i}B_{i,n-1}(x)
+          -\frac{n}{t_{i+n+1}-t_{i+1}}B_{i+1,n-1}(x).\]
+        </div>
+        <p>Marsden 恒等式把 \((t-x)^n\) 表成 B-spline 的线性组合，说明这组局部基仍能精确再现低次多项式。对均匀节点，B-spline 只是同一个 cardinal B-spline 的平移和缩放；对非均匀节点，节点间距则进入每个基函数的形状。</p>
+        <p>曲线拟合时，参数 \(t_i\) 常用累计弦长分配，而不是简单按点的编号分配；参数化不合适会使几何形状在局部挤压或拉伸。</p>
       </section>
 
       <section>
-        <h2>4. 差分和最小二乘</h2>
-        <p>差分式子都从 Taylor 展开来：</p>
+        <h2>8. 最小二乘逼近</h2>
+        <h3>内积、正交系统和 Fourier 展开</h3>
+        <p>给定正权函数 \(\rho\)，函数空间上的内积为</p>
         <div class="math-block">
-          \[f'(x)=\frac{f(x+h)-f(x)}{h}+O(h),\qquad
-          f'(x)=\frac{f(x)-f(x-h)}{h}+O(h),\]
-          \[f'(x)=\frac{f(x+h)-f(x-h)}{2h}+O(h^2),\qquad
-          f''(x)=\frac{f(x+h)-2f(x)+f(x-h)}{h^2}+O(h^2).\]
+          \[\langle u,v\rangle=\int_a^b\rho(t)u(t)\overline{v(t)}\,dt,\qquad
+          \|u\|_2=\sqrt{\langle u,u\rangle}.\]
         </div>
-        <p>中心差分多一阶，但 \(h\) 也不能无限缩小：截断误差下降时，舍入误差可能上升。</p>
-        <p>最小二乘是在有限维空间里找最近的函数：</p>
+        <p>非零正交函数线性无关。对一组线性无关的 \(v_1,\ldots,v_n\)，Gram–Schmidt 过程逐项减去已有方向：</p>
+        <div class="math-block">
+          \[u_k=v_k-\sum_{j=1}^{k-1}
+          \frac{\langle v_k,u_j\rangle}{\langle u_j,u_j\rangle}u_j,
+          \qquad e_k=\frac{u_k}{\|u_k\|_2}.\]
+        </div>
+        <p>在正交基下，投影系数互不耦合：</p>
+        <div class="math-block">
+          \[\widehat f=\sum_{j=0}^{n}c_j\phi_j,\qquad
+          c_j=\frac{\langle f,\phi_j\rangle}{\langle\phi_j,\phi_j\rangle}.\]
+        </div>
+        <p>三角正交基给出 Fourier 展开。它和多项式正交基的共同点是：先选内积，再用投影求系数。</p>
+
+        <h3>连续和离散最小二乘</h3>
+        <p>连续最小二乘的目标是</p>
         <div class="math-block">
           \[\min_{c_0,\ldots,c_n}
-          \left\lVert f-\sum_{j=0}^{n}c_j\phi_j\right\rVert_2^2.\]
+          \left\|f-\sum_{j=0}^{n}c_j\phi_j\right\|_2^2.\]
         </div>
-        <p>对应的 Gram 系统是</p>
+        <p>令残差与每个基函数正交，得到正规方程</p>
         <div class="math-block">
           \[\sum_{j=0}^{n}\langle\phi_i,\phi_j\rangle c_j
           =\langle f,\phi_i\rangle,\qquad i=0,\ldots,n.\]
         </div>
-        <p>基函数正交时系数可以分开算；基函数接近相关时，QR 通常比直接解正规方程稳。</p>
+        <p>离散数据 \((x_i,y_i)\) 则写成设计矩阵 \(A\) 和向量 \(y\)：</p>
+        <div class="math-block">
+          \[\min_c\|Ac-y\|_2^2,\qquad
+          A^\mathsf{T}Ac=A^\mathsf{T}y.\]
+        </div>
+        <p>离散内积可以看成离散测度 \(\mu=\sum_i w_i\delta_{x_i}\) 下的内积：</p>
+        <div class="math-block">
+          \[\langle u,v\rangle_\mu
+          =\sum_i w_i u(x_i)\overline{v(x_i)}.\]
+        </div>
+        <p>这里的 \(\delta_{x_i}\) 是集中在 \(x_i\) 的 Dirac 测度。实际计算中也常用宽度为 \(\sigma\) 的 Gaussian</p>
+        <div class="math-block">
+          \[g_\sigma(x-\bar x)=
+          \frac{1}{\sqrt{2\pi}\sigma}
+          \exp\left(-\frac{(x-\bar x)^2}{2\sigma^2}\right),\]
+        </div>
+        <p>作为 Dirac 测度的平滑近似；\(\sigma\) 越小，质量越集中，但离散化和噪声也越敏感。</p>
+        <p>正规方程会把条件数平方化：\(\kappa(A^\mathsf{T}A)=\kappa(A)^2\)。因此数值计算优先用 QR 分解 \(A=QR\)，再解 \(Rc=Q^\mathsf{T}y\)；列相关或尺度差异大时尤其如此。</p>
+
+        <h3>病态系统和正则化</h3>
+        <p>若 \(A=U\Sigma V^\ast\)，小奇异值对应的方向会把数据噪声放大。Moore–Penrose 逆为</p>
+        <div class="math-block">
+          \[A^+=V\Sigma^+U^\ast,\qquad
+          c=A^+y.\]
+        </div>
+        <p>谱截断把小于阈值 \(\tau\) 的奇异值倒数置零：</p>
+        <div class="math-block">
+          \[\sigma_i^+=
+          \begin{cases}
+          1/\sigma_i,&amp;\sigma_i\ge\tau,\\
+          0,&amp;\sigma_i&lt;\tau.
+          \end{cases}\]
+        </div>
+        <p>Tikhonov 正则化在拟合误差外加入解的大小惩罚：</p>
+        <div class="math-block">
+          \[c_\alpha=\arg\min_c\bigl(\|Ac-y\|_2^2+\alpha\|c\|_2^2\bigr)
+          =(A^\ast A+\alpha I)^{-1}A^\ast y.\]
+        </div>
+        <p>\(\alpha\) 越大，噪声放大越小，但偏差越大。谱截断和 Tikhonov 都是在“拟合数据”和“抑制不稳定方向”之间取平衡；参数应结合噪声水平和验证误差决定。</p>
       </section>
 
       <section>
-        <h2>5. 数值积分</h2>
+        <h2>9. 数值积分与数值微分</h2>
         <figure class="diagram-figure">
           <img src="assets/numerical-analysis/quadrature.svg" alt="用节点和权重近似曲线下面积的示意图" loading="lazy">
-          <figcaption>积分换成节点值的加权和。</figcaption>
+          <figcaption>求积公式把积分写成节点值的加权和。</figcaption>
         </figure>
-        <p>求积公式：</p>
+
+        <h3>求积公式的精度</h3>
+        <p>带权积分和求积公式写成</p>
         <div class="math-block">
-          \[I(f)=\int_a^b f(x)\,dx\approx Q(f)=\sum_{i=0}^{n}A_i f(x_i),
-          \qquad \operatorname{Err}(f)=I(f)-Q(f).\]
+          \[I(f)=\int_a^b f(x)\rho(x)\,dx,\qquad
+          I_n(f)=\sum_{k=1}^{n}w_k f(x_k),\qquad
+          E_n(f)=I(f)-I_n(f).\]
         </div>
-        <p>中点、梯形和 Simpson 公式的余项：</p>
+        <p>公式的次数精度 \(d_E\) 是它对所有 \(P_{d_E}\) 中的多项式都精确，而至少对一个 \(P_{d_E+1}\) 不精确。判断收敛时，除了多项式是否稠密，还要控制权重总量 \(\sum_k|w_k|\)；节点增多而权重剧烈振荡时，形式上的高精度不一定带来稳定的收敛。</p>
+
+        <h3>Newton–Cotes 和复合公式</h3>
+        <p>Newton–Cotes 使用等距节点插值。梯形和 Simpson 公式分别为</p>
         <div class="math-block">
-          \[I-Q_M=\frac{(b-a)^3}{24}f''(\xi),\qquad
-          I-Q_T=-\frac{(b-a)^3}{12}f''(\xi),\]
-          \[I-Q_S=-\frac{(b-a)^5}{2880}f^{(4)}(\xi).\]
+          \[I_T(f)=\frac{b-a}{2}\bigl(f(a)+f(b)\bigr),\]
+          \[I_S(f)=\frac{b-a}{6}
+          \left[f(a)+4f\left(\frac{a+b}{2}\right)+f(b)\right].\]
         </div>
-        <p>Gauss--Legendre 把 \([a,b]\) 映到 \([-1,1]\)，取 \(P_n\) 的零点 \(t_i\)：</p>
+        <p>若 \(f\in C^2[a,b]\) 或 \(f\in C^4[a,b]\)，对应余项为</p>
         <div class="math-block">
-          \[\int_a^b f(x)\,dx\approx\frac{b-a}{2}\sum_{i=1}^{n}w_i
+          \[E_T(f)=-\frac{(b-a)^3}{12}f''(\xi),\qquad
+          E_S(f)=-\frac{(b-a)^5}{2880}f^{(4)}(\xi).\]
+        </div>
+        <p>复合梯形取 \(h=(b-a)/n\)，误差为 \(O(h^2)\)；复合 Simpson（\(n\) 为偶数）误差为 \(O(h^4)\)：</p>
+        <div class="math-block">
+          \[E_n^T(f)=-\frac{b-a}{12}h^2f''(\xi),\qquad
+          E_n^S(f)=-\frac{b-a}{180}h^4f^{(4)}(\xi).\]
+        </div>
+        <p>高次数等距 Newton–Cotes 的权重会振荡，教材指出次数较高时甚至可能不收敛。实际计算通常把低阶公式做成复合公式。</p>
+
+        <h3>Gauss、Radau 和 Lobatto</h3>
+        <p>Gauss–Legendre 在 \([-1,1]\) 上取 Legendre 多项式 \(P_n\) 的 \(n\) 个零点 \(t_i\)，再线性映到 \([a,b]\)：</p>
+        <div class="math-block">
+          \[\int_a^b f(x)\,dx\approx\frac{b-a}{2}
+          \sum_{i=1}^{n}w_i
           f\left(\frac{a+b}{2}+\frac{b-a}{2}t_i\right),\]
+        </div>
+        <div class="math-block">
           \[w_i=\frac{2}{(1-t_i^2)[P_n'(t_i)]^2}.\]
         </div>
-        <p>它对次数不超过 \(2n-1\) 的多项式完全精确。Radau 固定一个端点，Lobatto 固定两个端点。</p>
+        <p>它对次数不超过 \(2n-1\) 的多项式完全精确。Radau 固定一个端点，Lobatto 固定两个端点，因此次数精度会相应降低，但在需要端点函数值的边值问题中更方便。</p>
+
+        <h3>数值微分和步长</h3>
+        <p>Taylor 展开给出常用差分式：</p>
+        <div class="math-block">
+          \[f'(x)=\frac{f(x+h)-f(x)}{h}+O(h),\qquad
+          f'(x)=\frac{f(x)-f(x-h)}{h}+O(h),\]
+          \[f'(x)=\frac{f(x+h)-f(x-h)}{2h}+O(h^2),\]
+          \[f''(x)=\frac{f(x+h)-2f(x)+f(x-h)}{h^2}+O(h^2).\]
+        </div>
+        <p>减小 \(h\) 会降低截断误差，却会放大函数值舍入误差。对 \(p\) 阶、\(r\) 阶导数的差分，常用误差模型是</p>
+        <div class="math-block">
+          \[E(h)\approx C_t h^p+C_r\frac{u}{h^r}.\]
+        </div>
+        <p>因此步长不能只按“越小越好”选择。对一阶导数的中心差分，平衡两项通常给出 \(h=O(u^{1/3})\)；前向差分则是 \(h=O(u^{1/2})\)。实际还要考虑函数评价本身的噪声和尺度。</p>
       </section>
 
       <section>
-        <h2>6. 浮点误差</h2>
-        <div class="math-block">
-          \[\operatorname{fl}(a\mathbin{\circ} b)
-          =(a\mathbin{\circ} b)(1+\delta),\qquad
-          |\delta|\leq u.\]
+        <h2>最后检查</h2>
+        <div class="article-table-wrap">
+          <table>
+            <thead>
+              <tr><th>问题</th><th>要看什么</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>计算结果不准</td><td>输入舍入、问题条件数、算法稳定性是否分别控制</td></tr>
+              <tr><td>迭代不收敛</td><td>初值、导数或 Jacobian、压缩条件、停止条件</td></tr>
+              <tr><td>插值振荡</td><td>节点分布、Lebesgue 常数、是否改用样条</td></tr>
+              <tr><td>最小二乘不稳定</td><td>设计矩阵的奇异值，优先 QR，必要时正则化</td></tr>
+              <tr><td>积分或微分误差不降</td><td>次数精度、复合步长、舍入误差和函数光滑性</td></tr>
+            </tbody>
+          </table>
         </div>
-        <p>前向误差看 \(\lVert\widehat{x}-x\rVert/\lVert x\rVert\)。后向误差问 \(\widehat{x}\) 是否是一个稍微扰动过的问题的精确解：</p>
-        <div class="math-block">
-          \[(A+\Delta A)\widehat{x}=b+\Delta b.\]
-        </div>
-        <p>条件数属于问题，稳定性属于算法。两者都要看。</p>
-      </section>
-
-      <section>
-        <h2>中文小结</h2>
         <div class="zh-summary">
-          <p>先选近似对象，再看误差；最后检查稳定性。步长更小、次数更高，都不保证结果自动变好。</p>
+          <p>数值方法的结论都带条件。先确定近似对象和误差，再选择算法；最后检查条件数、稳定性和参数范围。</p>
         </div>
       </section>
 

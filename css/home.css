@@ -143,7 +143,7 @@ h2 {
 .about-copy p:last-child { margin-bottom: 0; }
 .text-link { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: .2em; }
 .text-link:hover, .text-link:focus-visible { color: var(--accent); text-decoration-color: var(--accent); }
-.article-page { max-width: 760px; padding: 4rem 0 5rem; }
+.article-page { width: 100%; min-width: 0; max-width: 760px; padding: 4rem 0 5rem; }
 .article-kicker {
   margin-bottom: 1.35rem;
   color: var(--accent);
@@ -179,7 +179,14 @@ h2 {
   font-weight: 600;
   line-height: 1.4;
 }
-.article-page p, .article-page li { max-width: 680px; }
+.article-page h3 {
+  max-width: 680px;
+  margin: 2rem 0 .65rem;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.article-page p, .article-page li { width: 100%; max-width: 680px; overflow-wrap: anywhere; }
 .article-page ul { padding-left: 1.25rem; }
 .article-page ol { padding-left: 1.35rem; }
 .article-page li { margin-bottom: .85rem; }
@@ -278,8 +285,10 @@ h2 {
 }
 @media (max-width: 760px) {
   .site-header, main, .site-footer { width: min(calc(100% - 32px), var(--max)); }
-  .site-header { min-height: 64px; padding: .85rem 0; }
-  .site-nav { justify-content: flex-end; gap: .4rem .8rem; line-height: 1.4; }
+  .site-header { display: block; min-height: 64px; padding: .85rem 0; }
+  .wordmark { flex: 0 0 auto; }
+  .site-nav { min-width: 0; max-width: none; margin: .75rem 0 0; justify-content: flex-start; gap: .4rem .8rem; line-height: 1.4; }
+  .site-nav a { white-space: nowrap; }
   .hero { padding: 2.5rem 0 2.25rem; }
   h1 { font-size: 1.85rem; }
   .hero-lede { max-width: 32rem; }
