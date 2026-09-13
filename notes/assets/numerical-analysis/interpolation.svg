@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 320" role="img" aria-labelledby="title desc">
+  <title id="title">插值示意图</title>
+  <desc id="desc">若干节点落在一条光滑曲线上，虚线表示节点位置，实线表示插值多项式。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6" fill="none" stroke="#77736b" stroke-width="1.2"/>
+    </marker>
+  </defs>
+  <rect width="760" height="320" fill="#fbfaf7"/>
+  <g fill="none" stroke="#77736b" stroke-width="1.4">
+    <path d="M58 238 H712" marker-end="url(#arrow)"/>
+    <path d="M82 270 V42" marker-end="url(#arrow)"/>
+  </g>
+  <g fill="#77736b" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="15">
+    <text x="716" y="243">x</text>
+    <text x="68" y="38">f(x)</text>
+  </g>
+  <path d="M92 210 C150 184 178 115 238 125 C300 136 317 220 372 205 C431 188 451 90 506 93 C565 96 586 191 690 176"
+        fill="none" stroke="#77736b" stroke-width="1.8" stroke-dasharray="6 5"/>
+  <path d="M92 207 C151 187 181 119 238 127 C293 135 318 215 372 202 C430 187 453 95 506 96 C566 98 589 188 690 178"
+        fill="none" stroke="#a44b35" stroke-width="3"/>
+  <g stroke="#c4bfb5" stroke-width="1.2" stroke-dasharray="4 5">
+    <path d="M145 270 V179"/>
+    <path d="M238 270 V127"/>
+    <path d="M326 270 V211"/>
+    <path d="M420 270 V172"/>
+    <path d="M506 270 V96"/>
+    <path d="M606 270 V183"/>
+  </g>
+  <g fill="#a44b35">
+    <circle cx="145" cy="179" r="4.5"/>
+    <circle cx="238" cy="127" r="4.5"/>
+    <circle cx="326" cy="211" r="4.5"/>
+    <circle cx="420" cy="172" r="4.5"/>
+    <circle cx="506" cy="96" r="4.5"/>
+    <circle cx="606" cy="183" r="4.5"/>
+  </g>
+  <g fill="#292825" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="16">
+    <text x="450" y="74">pₙ(x)</text>
+    <text x="235" y="294">xᵢ</text>
+    <text x="495" y="294">节点</text>
+  </g>
+</svg>

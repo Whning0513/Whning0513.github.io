@@ -216,6 +216,26 @@ h2 {
   font-size: .9rem;
   line-height: 1.5;
 }
+.note-image-link,
+.diagram-figure {
+  display: block;
+}
+.diagram-figure {
+  max-width: 680px;
+  margin: 1.35rem 0;
+}
+.diagram-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+}
+.diagram-figure figcaption {
+  margin-top: .6rem;
+  color: var(--muted);
+  font-size: .9rem;
+  line-height: 1.5;
+}
 .article-callout {
   margin-top: 3.5rem;
   border-top: 1px solid var(--line);

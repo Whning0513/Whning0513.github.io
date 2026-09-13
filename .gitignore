@@ -15,5 +15,8 @@
 !notes/assets/numerical-algebra/
 !notes/assets/numerical-algebra/*.png
 !notes/assets/numerical-algebra/*.pdf
+!notes/assets/numerical-analysis/
+!notes/assets/numerical-analysis/*.png
+!notes/assets/numerical-analysis/*.svg
 !scripts/
 !scripts/check_site.py
