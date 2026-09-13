@@ -11,5 +11,9 @@
 !.nojekyll
 !notes/
 !notes/*.html
+!notes/assets/
+!notes/assets/numerical-algebra/
+!notes/assets/numerical-algebra/*.png
+!notes/assets/numerical-algebra/*.pdf
 !scripts/
 !scripts/check_site.py
