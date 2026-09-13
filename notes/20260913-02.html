@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="数值分析学习笔记：求根、插值、样条、差分、最小二乘与数值积分。">
+  <meta name="theme-color" content="#f4f3ef">
+  <title>数值分析：近似、误差与稳定性 | Whning</title>
+  <link rel="stylesheet" href="../css/home.css">
+  <script>
+    window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header">
+    <a class="wordmark" href="../index.html" aria-label="Whning home">whning<span>.</span></a>
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="../index.html#notes">Notes</a>
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#about">About</a>
+      <a href="https://github.com/Whning0513" target="_blank" rel="noopener">GitHub <span aria-hidden="true">&#8599;</span></a>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <article class="article-page">
+      <p class="article-kicker">Study note / 2026-09-13</p>
+      <h1>数值分析：近似、误差与稳定性</h1>
+      <p class="article-lede">把求根、插值、积分和逼近放在同一条线上：先换成一个能算的对象，再看误差怎样走。</p>
+      <p class="article-byline">从桌面上的一页总览整理，先保留会反复用到的公式。</p>
+
+      <section>
+        <h2>1. 先问三个问题</h2>
+        <p>数值分析经常重复同一件事：把不能直接算的对象，换成一个可计算的近似。于是总要问：近似了什么，误差怎么量，算法会不会把误差放大。</p>
+        <div class="math-block">
+          \[e_k=x_k-x^\ast,\qquad
+          \lim_{k\to\infty}\frac{|e_{k+1}|}{|e_k|^p}=C.\]
+        </div>
+        <p>这里的 \(p\) 是收敛阶。\(p=1\) 是线性收敛，\(p=2\) 是二次收敛；但“阶数高”通常只说明算法已经靠近解，不能替代对初值、条件数和舍入误差的检查。</p>
+      </section>
+
+      <section>
+        <h2>2. 求根：括区间保证，迭代追速度</h2>
+        <p>先考虑 \(f(x)=0\)。二分法要求 \(f(a)f(b)&lt;0\)，取 \(m=(a+b)/2\)，再把符号相反的一半留下来。它的优点是稳：</p>
+        <div class="math-block">
+          \[|m_k-x^\ast|\leq\frac{b-a}{2^{k+1}}.\]
+        </div>
+        <p>Newton 法用切线代替函数。单变量时</p>
+        <div class="math-block">
+          \[x_{k+1}=x_k-\frac{f(x_k)}{f'(x_k)}.\]
+        </div>
+        <p>多变量时把导数换成 Jacobian：</p>
+        <div class="math-block">
+          \[x_{k+1}=x_k-J_f(x_k)^{-1}f(x_k).\]
+        </div>
+        <p>实际计算通常解线性方程组，不直接求逆。简单根附近 Newton 法二次收敛；重根会降阶，也更容易让导数变得不可靠。</p>
+        <p>割线法用两个旧点近似导数：</p>
+        <div class="math-block">
+          \[x_{k+1}=x_k-f(x_k)\frac{x_k-x_{k-1}}{f(x_k)-f(x_{k-1})}.\]
+        </div>
+        <p>它不需要 \(f'\)，收敛阶是黄金比例 \(\varphi=(1+\sqrt5)/2\)，速度介于二分法和 Newton 法之间。固定点迭代写成 \(x=g(x)\)；若在解附近 \(|g'(x)|\leq q&lt;1\)，就有收缩和线性收敛。怎么选 \(g\)，往往比记住公式更重要。</p>
+      </section>
+
+      <section>
+        <h2>3. 插值：从节点重建函数</h2>
+        <p>给定节点 \(x_0,\ldots,x_n\) 和函数值 \(f(x_i)\)，Lagrange 形式是</p>
+        <div class="math-block">
+          \[\ell_i(x)=\prod_{j\ne i}\frac{x-x_j}{x_i-x_j},\qquad
+          p_n(x)=\sum_{i=0}^{n}f(x_i)\ell_i(x).\]
+        </div>
+        <p>Newton 形式把新增节点的影响逐项加上：</p>
+        <div class="math-block">
+          \[p_n(x)=f[x_0]+\sum_{k=1}^{n}f[x_0,\ldots,x_k]
+          \prod_{j=0}^{k-1}(x-x_j).\]
+        </div>
+        <p>只要 \(f\in C^{n+1}\)，插值余项为</p>
+        <div class="math-block">
+          \[f(x)-p_n(x)=\frac{f^{(n+1)}(\xi)}{(n+1)!}
+          \prod_{i=0}^{n}(x-x_i).\]
+        </div>
+        <p>Hermite 插值把导数值也放进节点，等价于在差商表里重复节点。等距节点上盲目提高次数会遇到 Runge 现象；Chebyshev 节点把节点挤到端点附近，通常更稳：</p>
+        <div class="math-block">
+          \[x_i=\cos\frac{(2i+1)\pi}{2n+2},\qquad i=0,\ldots,n.\]
+        </div>
+      </section>
+
+      <section>
+        <h2>4. 样条：局部一点，整体平滑</h2>
+        <p>与一个很高次的多项式相比，三次样条在每个小区间上只用一个三次多项式：</p>
+        <div class="math-block">
+          \[s_i(x)=a_i+b_i(x-x_i)+c_i(x-x_i)^2+d_i(x-x_i)^3,
+          \qquad x\in[x_i,x_{i+1}].\]
+        </div>
+        <p>节点处要求函数值、一阶导数和二阶导数连续。自然边界条件是 \(s''(a)=s''(b)=0\)。令 \(h_i=x_{i+1}-x_i\)，\(M_i=s''(x_i)\)，内部节点满足三对角系统</p>
+        <div class="math-block">
+          \[h_{i-1}M_{i-1}+2(h_{i-1}+h_i)M_i+h_iM_{i+1}
+          =6\left(\frac{f_{i+1}-f_i}{h_i}-\frac{f_i-f_{i-1}}{h_{i-1}}\right).\]
+        </div>
+        <p>在足够光滑且网格不过分偏斜时，最大网格宽度为 \(h\)，有典型估计</p>
+        <div class="math-block">
+          \[\lVert f-s\rVert_\infty=O(h^4),\qquad
+          \lVert f'-s'\rVert_\infty=O(h^3),\qquad
+          \lVert f''-s''\rVert_\infty=O(h^2).\]
+        </div>
+        <p>B-spline 把样条写成 \(s(x)=\sum_i c_iB_i(x)\)。基函数非负、局部有支撑，并满足 \(\sum_iB_i(x)=1\)，所以改一个系数只影响附近一小段。</p>
+      </section>
+
+      <section>
+        <h2>5. 差分、逼近和最小二乘</h2>
+        <p>差分公式都来自 Taylor 展开。向前、向后和中心差分分别给出</p>
+        <div class="math-block">
+          \[f'(x)=\frac{f(x+h)-f(x)}{h}+O(h),\qquad
+          f'(x)=\frac{f(x)-f(x-h)}{h}+O(h),\]
+          \[f'(x)=\frac{f(x+h)-f(x-h)}{2h}+O(h^2),\qquad
+          f''(x)=\frac{f(x+h)-2f(x)+f(x-h)}{h^2}+O(h^2).\]
+        </div>
+        <p>所以 \(h\) 不能只取“越小越好”：截断误差会下降，舍入误差却可能上升。</p>
+        <p>最小二乘把函数投影到一个有限维空间：</p>
+        <div class="math-block">
+          \[\min_{c_0,\ldots,c_n}\left\lVert f-\sum_{j=0}^{n}c_j\phi_j\right\rVert_2^2.\]
+        </div>
+        <p>正规方程是 Gram 矩阵系统</p>
+        <div class="math-block">
+          \[\sum_{j=0}^{n}\langle\phi_i,\phi_j\rangle c_j
+          =\langle f,\phi_i\rangle,\qquad i=0,\ldots,n.\]
+        </div>
+        <p>如果基函数正交，系数可以逐个算；如果基函数接近线性相关，正规方程会放大条件数，数值实现通常更愿意用 QR 分解。</p>
+      </section>
+
+      <section>
+        <h2>6. 数值积分：把函数换成可积的近似</h2>
+        <p>一般的求积公式写成</p>
+        <div class="math-block">
+          \[I(f)=\int_a^b f(x)\,dx\approx Q(f)=\sum_{i=0}^{n}A_i f(x_i),
+          \qquad \operatorname{Err}(f)=I(f)-Q(f).\]
+        </div>
+        <p>Newton--Cotes 使用等距节点。例如中点、梯形和 Simpson 公式的余项分别为</p>
+        <div class="math-block">
+          \[I-Q_M=\frac{(b-a)^3}{24}f''(\xi),\qquad
+          Q_M=(b-a)f\left(\frac{a+b}{2}\right),\]
+          \[I-Q_T=-\frac{(b-a)^3}{12}f''(\xi),\qquad
+          Q_T=\frac{b-a}{2}\bigl(f(a)+f(b)\bigr),\]
+          \[I-Q_S=-\frac{(b-a)^5}{2880}f^{(4)}(\xi),\qquad
+          Q_S=\frac{b-a}{6}\left(f(a)+4f\left(\frac{a+b}{2}\right)+f(b)\right).\]
+        </div>
+        <p>Gauss--Legendre 则不固定节点间距。把区间映到 \([-1,1]\)，取 Legendre 多项式 \(P_n\) 的 \(n\) 个零点 \(t_i\)：</p>
+        <div class="math-block">
+          \[\int_a^b f(x)\,dx\approx\frac{b-a}{2}\sum_{i=1}^{n}w_i
+          f\left(\frac{a+b}{2}+\frac{b-a}{2}t_i\right),\]
+          \[w_i=\frac{2}{(1-t_i^2)[P_n'(t_i)]^2}.\]
+        </div>
+        <p>它对次数不超过 \(2n-1\) 的多项式完全精确。Legendre 多项式可以递推：</p>
+        <div class="math-block">
+          \[(k+1)P_{k+1}(x)=(2k+1)xP_k(x)-kP_{k-1}(x).\]
+        </div>
+        <p>Gauss--Radau 固定一个端点，Gauss--Lobatto 固定两个端点；需要端点值时，它们比纯 Gauss 节点更顺手。</p>
+      </section>
+
+      <section>
+        <h2>7. 浮点数：误差不只来自近似</h2>
+        <p>常用的浮点模型把一次基本运算写成</p>
+        <div class="math-block">
+          \[\operatorname{fl}(a\mathbin{\circ} b)=(a\mathbin{\circ} b)(1+\delta),
+          \qquad |\delta|\leq u,\qquad
+          \mathbin{\circ}\in\{+,-,\times,/\}.\]
+        </div>
+        <p>前向误差直接比较输出和真值：</p>
+        <div class="math-block">
+          \[\frac{\lVert\widehat{x}-x\rVert}{\lVert x\rVert}.\]
+        </div>
+        <p>后向误差则问：\(\widehat{x}\) 是哪个稍微扰动过的问题的精确解？例如</p>
+        <div class="math-block">
+          \[(A+\Delta A)\widehat{x}=b+\Delta b.\]
+        </div>
+        <p>条件数描述问题本身对扰动的敏感程度，稳定性描述算法是否额外放大扰动。实际误差通常是截断误差、数据误差和舍入误差一起作用的结果。</p>
+      </section>
+
+      <section>
+        <h2>中文小结</h2>
+        <div class="zh-summary">
+          <p>求根先看能不能保证落在区间里，再看迭代速度；插值先看节点，再看余项和 Runge 现象；积分是在“节点”和“权重”之间做选择。最后别忘了浮点数：把步长改小、阶数调高，都不保证结果自动变好。</p>
+        </div>
+      </section>
+
+      <p><a class="inline-link" href="../index.html#notes">返回笔记 <span aria-hidden="true">&#8592;</span></a></p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <span>&copy; 2026 Whning</span>
+    <a href="https://github.com/Whning0513" target="_blank" rel="noopener">github.com/Whning0513 <span aria-hidden="true">&#8599;</span></a>
+  </footer>
+</body>
+</html>
