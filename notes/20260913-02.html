@@ -65,6 +65,7 @@
           \qquad 1\le m&lt;\beta.\]
         </div>
         <p>\(\beta\) 是进制，\(p\) 是有效数字位数，\(e\in[L,U]\) 是指数范围。规范化后，最高位不为零；不同指数区间的间隔不同，所以浮点数在数轴上并不是等距的。</p>
+        <p>固定指数 \(e\) 时，相邻规范化浮点数的间隔约为 \(\beta^{e-p+1}\)。同一个绝对误差落在不同数量级上，代表的相对误差并不相同。靠近零的非正规数不满足相同的相对间隔，下面的相对舍入模型默认结果仍处在正常数范围内。</p>
         <p>教材用机器精度 \(\varepsilon_M=\beta^{1-p}\) 描述 \(1\) 与下一个浮点数之间的距离，并用 \(u\) 记舍入的单位量。对 IEEE 754 的双精度，\(\varepsilon_M\approx2.22\times10^{-16}\)。指数超出范围时发生上溢或下溢：</p>
         <div class="math-block">
           \[\operatorname{UFL}=\beta^L,\qquad
@@ -76,6 +77,13 @@
         <div class="math-block">
           \[\operatorname{fl}(x)=x(1+\delta),\qquad |\delta|\le u.\]
         </div>
+        <p>在没有上溢、下溢且精确结果可正常表示时，每个基本运算都可逐步写成</p>
+        <div class="math-block">
+          \[\operatorname{fl}(a\mathbin{\circ} b)
+          =(a\mathbin{\circ} b)(1+\delta),\qquad
+          \mathbin{\circ}\in\{+,-,\times,/\},\quad |\delta|\le u.\]
+        </div>
+        <p>这是单步舍入的模型。多步运算要把各步的 \(\delta\) 叠加起来；而减法中输入本来就有的误差，还可能因为相消被放大。</p>
         <p>对乘法和除法，这个模型通常可以直接使用。加法和减法还要考虑对阶以及结果本身的尺度；如果两个数几乎相等，减法会把前面已经存在的误差一起放大。</p>
         <p>若 \(a_i&gt;0\)，连续求和的舍入误差可以合并写成</p>
         <div class="math-block">
@@ -133,11 +141,39 @@
           \[\operatorname{cond}f(x)\approx
           \frac{\|x\|\,\|J_f(x)\|}{\|f(x)\|}.\]
         </div>
+        <p>问题的条件数还要和算法本身的条件数分开。若浮点算法 \(f_A\) 的输出可以看成某个精确输入 \(x_A\) 的 \(f(x_A)\)，则</p>
+        <div class="math-block">
+          \[\operatorname{cond}_A(x)=
+          \frac1u\inf_{\{x_A:\,f(x_A)=f_A(x)\}}
+          \frac{\|x_A-x\|}{\|x\|}.\]
+        </div>
+        <p>它衡量算法为了产生当前输出，等价地改变了多少输入；接近 \(1\) 表示算法只引入了一个机器精度量级的扰动。若各分量的相对尺度很重要，可改用分量条件数</p>
+        <div class="math-block">
+          \[A(x)=[a_{ij}(x)],\qquad
+          a_{ij}(x)=\frac{x_j}{f_i(x)}
+          \frac{\partial f_i}{\partial x_j}(x),\qquad
+          \operatorname{cond}_{\mathrm c}f(x)=\|A(x)\|.\]
+        </div>
+        <p>分母或输入分量为零时，分量相对误差需要单独约定；不能机械套用这个式子。</p>
         <p>线性方程组 \(Ax=b\) 对矩阵和右端项的敏感度由</p>
         <div class="math-block">
           \[\operatorname{cond}(A)=\|A\|\,\|A^{-1}\|\]
         </div>
         <p>控制。条件数大，表示问题本身会放大数据误差；换一个算法不能改变这个事实，只能避免额外放大。</p>
+        <p>例如 \(Ax=b\)、\(\widehat A\widehat x=\widehat b\)，记</p>
+        <div class="math-block">
+          \[\eta_A=\frac{\|\widehat A-A\|}{\|A\|},\qquad
+          \eta_b=\frac{\|\widehat b-b\|}{\|b\|}.\]
+        </div>
+        <p>当 \(\operatorname{cond}(A)\eta_A&lt;1\) 时，有标准扰动界</p>
+        <div class="math-block">
+          \[\frac{\|\widehat x-x\|}{\|x\|}
+          \le
+          \frac{\operatorname{cond}(A)}
+          {1-\operatorname{cond}(A)\eta_A}
+          \bigl(\eta_b+\eta_A\bigr).\]
+        </div>
+        <p>这条不等式把“矩阵扰动”和“右端项扰动”放在同一个条件数下比较，也说明了为什么接近奇异时，哪怕数据改动很小，解也可能变化很大。</p>
 
         <h3>稳定的算法和总误差</h3>
         <p>算法的签名不只包括输入和输出，还包括前置条件、后置条件，以及输入不满足条件时的处理方式。实际计算通常包含三件事：先把 \(x\) 舍入成 \(x^\ast\)，再用算法求 \(f_A(x^\ast)\)，最后比较 \(f_A(x^\ast)\) 与 \(f(x)\)。一阶估计可以写成</p>
@@ -193,6 +229,7 @@
           \frac{x_k-x_{k-1}}{f(x_k)-f(x_{k-1})}.\]
         </div>
         <p>它不需要 \(f'\)，在条件合适时 Q-阶为黄金比 \(\varphi=(1+\sqrt5)/2\)，介于线性和二次之间。</p>
+        <p>停止迭代时最好同时检查步长和残差。仅有 \(|f(x_k)|\) 很小并不一定说明根的位置很准：若 \(f'(x_k)\) 也很小，根的误差仍可能较大。实际可结合 \(|x_{k+1}-x_k|\)、\(|f(x_{k+1})|\) 以及二分法留下的区间一起判断。</p>
 
         <h3>固定点和方程组</h3>
         <p>把方程改写成 \(x=g(x)\)。若 \(g:[a,b]\to[a,b]\)，且 \(|g'(x)|\le q&lt;1\)，则迭代 \(x_{k+1}=g(x_k)\) 有唯一不动点，并满足</p>
@@ -201,6 +238,7 @@
           \frac{q^k}{1-q}|x_1-x_0|.\]
         </div>
         <p>局部判断通常看 \(|g'(\alpha)|\)：小于 \(1\) 才有局部收敛，等于零时可能出现更高阶收敛。不同的等价改写会改变这个导数，所以“方程相同”不代表迭代性质相同。</p>
+        <p>向量情形只需把导数换成 Jacobian：若某个闭域在选定范数下满足 \(g(D)\subset D\) 且 \(\|J_g(x)\|\le q&lt;1\)，同样可由压缩映射得到唯一不动点和线性误差界。</p>
         <p>对 \(F(x)=0\)，Newton 法变成</p>
         <div class="math-block">
           \[J_F(x_k)s_k=-F(x_k),\qquad x_{k+1}=x_k+s_k.\]
@@ -314,6 +352,7 @@
           \[\ell_i(x)=\prod_{j\ne i}\frac{x-x_j}{x_i-x_j},\qquad
           p_n(x)=\sum_{i=0}^{n}f(x_i)\ell_i(x).\]
         </div>
+        <p>基本多项式满足 \(\ell_i(x_j)=\delta_{ij}\)，所以插值条件是逐项自动满足的；这也是 Lagrange 形式容易证明存在唯一性的原因。</p>
         <p>Newton 形式使用差商。差商递推为</p>
         <div class="math-block">
           \[f[x_i,\ldots,x_{i+k}]
@@ -331,6 +370,7 @@
           \frac{(x_j-x)p_{i,j-1}(x)+(x-x_i)p_{i+1,j-1}(x)}
           {x_j-x_i}.\]
         </div>
+        <p>Neville–Aitken 不必显式写出整个多项式，给定一个目标点 \(x\) 时用 \(O(n^2)\) 次运算直接得到 \(p_n(x)\)；节点或目标点改变时，递推表也要重新计算。</p>
 
         <h3>余项、节点和 Lebesgue 常数</h3>
         <p>若 \(f\in C^{n+1}[a,b]\)，插值余项为</p>
@@ -360,6 +400,14 @@
           \[f(x)-H(x)=\frac{f^{(N)}(\xi)}{N!}
           \prod_i(x-x_i)^{m_i}.\]
         </div>
+        <p>相邻节点的三次 Hermite 段可以直接写出。令 \(h_i=x_{i+1}-x_i\)、\(t=(x-x_i)/h_i\)，则</p>
+        <div class="math-block">
+          \[H_i(x)=h_{00}(t)f_i+h_{10}(t)h_i f'_i
+          +h_{01}(t)f_{i+1}+h_{11}(t)h_i f'_{i+1},\]
+          \[h_{00}=2t^3-3t^2+1,\quad h_{10}=t^3-2t^2+t,\]
+          \[h_{01}=-2t^3+3t^2,\quad h_{11}=t^3-t^2.\]
+        </div>
+        <p>四个基函数分别对应左右端点的函数值和导数，代入 \(t=0,1\) 就能检查四个插值条件。</p>
         <p>Bézier 曲线使用 Bernstein 基函数表示控制点 \(P_i\)：</p>
         <div class="math-block">
           \[B(t)=\sum_{i=0}^{n}\binom ni t^i(1-t)^{n-i}P_i,\qquad 0\le t\le1.\]
@@ -381,6 +429,14 @@
           =6\left(\frac{f_{i+1}-f_i}{h_i}
           -\frac{f_i-f_{i-1}}{h_{i-1}}\right).\]
         </div>
+        <p>解出 \(M_i\) 后，每段系数不必再解一个四次系统，而是逐段由</p>
+        <div class="math-block">
+          \[a_i=f_i,\qquad c_i=\frac{M_i}{2},\qquad
+          d_i=\frac{M_{i+1}-M_i}{6h_i},\]
+          \[b_i=\frac{f_{i+1}-f_i}{h_i}
+          -\frac{h_i}{6}\bigl(2M_i+M_{i+1}\bigr)\]
+        </div>
+        <p>得到。这些公式也方便检查端点值、二阶导数和相邻段的连续性。</p>
         <p>还需要两个边界条件。常用选择如下：</p>
         <div class="article-table-wrap">
           <table>
@@ -425,7 +481,17 @@
           \frac{n}{t_{i+n}-t_i}B_{i,n-1}(x)
           -\frac{n}{t_{i+n+1}-t_{i+1}}B_{i+1,n-1}(x).\]
         </div>
-        <p>Marsden 恒等式把 \((t-x)^n\) 表成 B-spline 的线性组合，说明这组局部基仍能精确再现低次多项式。对均匀节点，B-spline 只是同一个 cardinal B-spline 的平移和缩放；对非均匀节点，节点间距则进入每个基函数的形状。</p>
+        <p>在当前的节点编号和归一化下，B-spline 还有积分恒等式</p>
+        <div class="math-block">
+          \[\int_{t_i}^{t_{i+n+1}}B_{i,n}(x)\,dx
+          =\frac{t_{i+n+1}-t_i}{n+1}.\]
+        </div>
+        <p>若内部节点的重复次数为 \(r\)，通常只能保持 \(C^{\,n-r}\) 连续；节点重复越多，曲线越容易形成折角。Marsden 恒等式把低次多项式再现性写成</p>
+        <div class="math-block">
+          \[(y-x)^n=
+          \sum_i\left(\prod_{j=1}^{n}(y-t_{i+j})\right)B_{i,n}(x).\]
+        </div>
+        <p>对均匀节点，B-spline 只是同一个 cardinal B-spline 的平移和缩放；对非均匀节点，节点间距则进入每个基函数的形状。</p>
         <p>曲线拟合时，参数 \(t_i\) 常用累计弦长分配，而不是简单按点的编号分配；参数化不合适会使几何形状在局部挤压或拉伸。</p>
       </section>
 
@@ -461,11 +527,28 @@
           \[\sum_{j=0}^{n}\langle\phi_i,\phi_j\rangle c_j
           =\langle f,\phi_i\rangle,\qquad i=0,\ldots,n.\]
         </div>
+        <p>把</p>
+        <div class="math-block">
+          \[G_{ij}=\langle\phi_i,\phi_j\rangle,\qquad
+          r_i=\langle f,\phi_i\rangle\]
+        </div>
+        <p>记成 Gram 矩阵 \(G\) 和右端 \(r\)，正规方程就是 \(Gc=r\)。若基函数正交，\(G\) 为对角矩阵；若只用 \(1,x,x^2,\ldots\) 这样的幂基，\(G\) 往往容易病态。</p>
+        <p>例如在 \([-1,1]\) 上取 \(\rho\equiv1\)，幂基的内积为</p>
+        <div class="math-block">
+          \[\langle x^i,x^j\rangle
+          =\int_{-1}^{1}x^{i+j}\,dx
+          =\begin{cases}
+          0,&amp;i+j\ \text{为奇数},\\
+          \dfrac{2}{i+j+1},&amp;i+j\ \text{为偶数}.
+          \end{cases}\]
+        </div>
+        <p>这类 Gram 矩阵的结构清楚，但次数升高后仍会变得病态；先正交化成 Legendre 一类的基，通常比直接使用幂基更稳。</p>
         <p>离散数据 \((x_i,y_i)\) 则写成设计矩阵 \(A\) 和向量 \(y\)：</p>
         <div class="math-block">
           \[\min_c\|Ac-y\|_2^2,\qquad
           A^\mathsf{T}Ac=A^\mathsf{T}y.\]
         </div>
+        <p>若样本有权重 \(w_i&gt;0\)，可把第 \(i\) 行同时乘 \(\sqrt{w_i}\)，得到加权最小二乘。列满秩时最小二乘解唯一；列相关时，最小值仍可能存在，但系数不唯一。数据不落在 \(A\) 的列空间时没有精确解，此时最小二乘解用残差最小来定义。</p>
         <p>离散内积可以看成离散测度 \(\mu=\sum_i w_i\delta_{x_i}\) 下的内积：</p>
         <div class="math-block">
           \[\langle u,v\rangle_\mu
@@ -486,6 +569,7 @@
           \[A^+=V\Sigma^+U^\ast,\qquad
           c=A^+y.\]
         </div>
+        <p>\(A^+y\) 总能给出残差最小的解；当最小二乘解不止一个时，它选其中欧氏范数最小的那个。SVD 因此既能识别近零奇异值，也能处理没有唯一解的情形。</p>
         <p>谱截断把小于阈值 \(\tau\) 的奇异值倒数置零：</p>
         <div class="math-block">
           \[\sigma_i^+=
@@ -517,6 +601,7 @@
           E_n(f)=I(f)-I_n(f).\]
         </div>
         <p>公式的次数精度 \(d_E\) 是它对所有 \(P_{d_E}\) 中的多项式都精确，而至少对一个 \(P_{d_E+1}\) 不精确。判断收敛时，除了多项式是否稠密，还要控制权重总量 \(\sum_k|w_k|\)；节点增多而权重剧烈振荡时，形式上的高精度不一定带来稳定的收敛。</p>
+        <p>常用的充分条件是：公式在所有多项式上收敛，并且存在与 \(n\) 无关的常数 \(C\)，使 \(\sum_k|w_k|\le C\)。这样先用多项式逼近连续函数，再控制求积算子的误差，就能推出对所有 \(f\in C[a,b]\) 收敛。</p>
 
         <h3>Newton–Cotes 和复合公式</h3>
         <p>Newton–Cotes 使用等距节点插值。梯形和 Simpson 公式分别为</p>
@@ -535,6 +620,15 @@
           \[E_n^T(f)=-\frac{b-a}{12}h^2f''(\xi),\qquad
           E_n^S(f)=-\frac{b-a}{180}h^4f^{(4)}(\xi).\]
         </div>
+        <p>复合公式的权重模式也应记住：</p>
+        <div class="math-block">
+          \[I_n^T=h\left[\frac12f(x_0)+\sum_{k=1}^{n-1}f(x_k)
+          +\frac12f(x_n)\right],\]
+          \[I_n^S=\frac h3\left[f(x_0)+f(x_n)
+          +4\sum_{\text{\scriptsize 奇 }k}f(x_k)
+          +2\sum_{\text{\scriptsize 偶 }k\ne0,n}f(x_k)\right],
+          \quad n\ \text{为偶数}.\]
+        </div>
         <p>高次数等距 Newton–Cotes 的权重会振荡，教材指出次数较高时甚至可能不收敛。实际计算通常把低阶公式做成复合公式。</p>
 
         <h3>Gauss、Radau 和 Lobatto</h3>
@@ -547,7 +641,13 @@
         <div class="math-block">
           \[w_i=\frac{2}{(1-t_i^2)[P_n'(t_i)]^2}.\]
         </div>
+        <p>Legendre 多项式可由三项递推生成：</p>
+        <div class="math-block">
+          \[P_0(x)=1,\qquad P_1(x)=x,\qquad
+          (k+1)P_{k+1}(x)=(2k+1)xP_k(x)-kP_{k-1}(x).\]
+        </div>
         <p>它对次数不超过 \(2n-1\) 的多项式完全精确。Radau 固定一个端点，Lobatto 固定两个端点，因此次数精度会相应降低，但在需要端点函数值的边值问题中更方便。</p>
+        <p>在 \(n\) 个节点的标准构造下，Radau 的次数精度为 \(2n-2\)，Lobatto 为 \(2n-3\)。记住“固定的端点越多，可自由调整的节点越少”，就能理解这两个阶数的差别。</p>
 
         <h3>数值微分和步长</h3>
         <p>Taylor 展开给出常用差分式：</p>
@@ -561,6 +661,11 @@
         <div class="math-block">
           \[E(h)\approx C_t h^p+C_r\frac{u}{h^r}.\]
         </div>
+        <p>更一般的差分格式可写成</p>
+        <div class="math-block">
+          \[D_hf(x)=\frac1{h^r}\sum_j c_j f(x+\lambda_jh).\]
+        </div>
+        <p>系数由矩条件确定；若它对次数不超过 \(r+p-1\) 的多项式都精确，则截断误差为 \(O(h^p)\)。这给出了判断一个新差分模板阶数的直接方法。</p>
         <p>因此步长不能只按“越小越好”选择。对一阶导数的中心差分，平衡两项通常给出 \(h=O(u^{1/3})\)；前向差分则是 \(h=O(u^{1/2})\)。实际还要考虑函数评价本身的噪声和尺度。</p>
       </section>
 
