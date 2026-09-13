@@ -18,5 +18,7 @@
 !notes/assets/numerical-analysis/
 !notes/assets/numerical-analysis/*.png
 !notes/assets/numerical-analysis/*.svg
+!notes/assets/data-structures/
+!notes/assets/data-structures/*.svg
 !scripts/
 !scripts/check_site.py
