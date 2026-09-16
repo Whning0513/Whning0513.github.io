@@ -103,6 +103,7 @@ h2 {
   line-height: 1.4;
 }
 .notes-list { margin-top: .25rem; }
+.section-action { margin-bottom: .8rem; color: var(--muted); font-size: .9rem; }
 .note-row {
   display: grid;
   grid-template-columns: 7rem minmax(0, 1fr);
