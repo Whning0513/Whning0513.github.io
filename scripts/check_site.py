@@ -73,7 +73,7 @@ def main() -> int:
 
         if html_file == ROOT / "index.html":
             homepage_parser = parser
-            required_ids = {"main-content", "notes", "work", "about"}
+            required_ids = {"main-content", "now", "notes", "work", "about"}
             missing_ids = required_ids - parser.ids
             if missing_ids:
                 errors.append(
