@@ -26,6 +26,23 @@
       <h1>Notes</h1>
       <p class="article-lede">A small index of the notes I have kept here.</p>
 
+      <form id="notes-search" class="archive-search" role="search">
+        <label class="search-label" for="note-search">Search notes</label>
+        <div class="search-row">
+          <input
+            id="note-search"
+            class="search-input"
+            type="search"
+            name="q"
+            autocomplete="off"
+            placeholder="Title or summary"
+            spellcheck="false"
+          >
+          <button id="clear-note-search" class="search-clear" type="button" hidden>Clear</button>
+        </div>
+        <p id="note-search-status" class="search-status" aria-live="polite"></p>
+      </form>
+
       <section class="archive-group">
         <h2>Agent and protocol notes</h2>
         <div class="notes-list">
@@ -133,5 +150,6 @@
     <span>&copy; 2026 Whning</span>
     <a href="https://github.com/Whning0513" target="_blank" rel="noopener">github.com/Whning0513 <span aria-hidden="true">&#8599;</span></a>
   </footer>
+  <script src="../scripts/notes-search.js"></script>
 </body>
 </html>
