@@ -23,4 +23,5 @@
 !notes/assets/data-structures/*.svg
 !scripts/
 !scripts/check_site.py
+!scripts/test_check_site.py
 !scripts/*.js
