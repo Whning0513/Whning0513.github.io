@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="一次下载器路径检查的补漏：相对路径如果经过符号链接，也可能写到配置目录之外。">
+  <meta name="theme-color" content="#f4f3ef">
+  <title>下载器的相对路径，也会越界 | Whning</title>
+  <link rel="stylesheet" href="../css/home.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到正文</a>
+  <header class="site-header">
+    <a class="wordmark" href="../index.html" aria-label="Whning home">whning<span>.</span></a>
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="../index.html#notes">Notes</a>
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#about">About</a>
+      <a href="https://github.com/Whning0513" target="_blank" rel="noopener">GitHub <span aria-hidden="true">&#8599;</span></a>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <article class="article-page">
+      <p class="article-kicker">Field note / 2026-10-22</p>
+      <h1>下载器的相对路径，也会越界</h1>
+      <p class="article-lede">拒绝绝对路径和 <code>..</code> 之后，还需要检查输出路径上的符号链接。</p>
+
+      <section>
+        <h2>字符串看起来没问题</h2>
+        <p>MyPracticalTools 的下载清单允许给文件指定相对输出路径。像 <code>linked/payload.bin</code> 这样的路径既不是绝对路径，也没有 <code>..</code>，按字符串检查会通过。</p>
+        <p>但如果输出目录里已经有一个指向外部位置的符号链接：</p>
+        <pre><code>OUT_DIR=downloads
+downloads/linked -&gt; /tmp/shared
+manifest path: linked/payload.bin</code></pre>
+        <p>程序沿着路径写文件时，实际落点会是 <code>/tmp/shared/payload.bin</code>。目标文件本身也可能是符号链接；只检查父目录还不够。</p>
+      </section>
+
+      <section>
+        <h2>逐段检查实际路径组件</h2>
+        <p>修复是在处理清单路径时，从 <code>OUT_DIR</code> 开始逐段拼出路径，并检查每个现存组件是不是符号链接。只要命中，就在调用下载逻辑前拒绝这个条目。这样目录链接和目标文件链接都走同一条检查。</p>
+        <p>对应的回归测试分别创建一个指向外部目录的链接，以及一个指向外部文件的链接。测试确认命令失败，外部文件没有被创建或改写。若测试环境不允许创建符号链接，这两项会跳过。</p>
+      </section>
+
+      <section>
+        <h2>这个检查的范围</h2>
+        <p>它处理的是校验时已经存在、位于输出路径上的符号链接。它不构成对并发替换路径等文件系统竞态的通用保证；这里记录的是一次具体的路径校验补漏，不是完整的文件系统安全模型。</p>
+        <p>改动在 <a class="text-link" href="https://github.com/Whning0513/MyPracticalTools/pull/21" target="_blank" rel="noopener">MyPracticalTools #21</a>。截至这篇记录写下时，PR 仍在等待 review，尚未合并。</p>
+      </section>
+
+      <p><a class="inline-link" href="../index.html#notes">返回笔记 <span aria-hidden="true">&#8592;</span></a></p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <span>&copy; 2026 Whning</span>
+    <a href="https://github.com/Whning0513" target="_blank" rel="noopener">github.com/Whning0513 <span aria-hidden="true">&#8599;</span></a>
+  </footer>
+</body>
+</html>
